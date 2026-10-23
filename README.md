@@ -21,7 +21,7 @@ O controle de mouse/teclado é opcional, exclusivo de um dispositivo por vez.
 - PC com **Java 21** (Temurin recomendado) e **Maven 3.9+** para compilar.
 - TV e PC na **mesma LAN**. Não exponha a porta na internet.
 - TV com navegador HTML5 e suporte a MJPEG (webOS 3+, Tizen 2016+; testar o modelo alvo).
-- Para captura real: sessão gráfica X11 (ou XWayland). Em Wayland puro, use `--demo` ou uma sessão X11.
+- Para captura real: sessão gráfica **X11 nativa** é o caminho homologável. Em Wayland, o XWayland pode gerar imagem preta; use `--demo` ou uma sessão X11.
 
 ## Quick start
 

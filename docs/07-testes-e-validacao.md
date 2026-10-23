@@ -7,13 +7,13 @@ Evidências da versão **1.0.0**, executadas em **2026-10-23** no PC de desenvol
 
 | Camada | Resultado |
 |---|---|
-| Testes automatizados | **52 testes, 0 falhas, 0 erros** |
-| Cobertura de linhas | **70,99%** (935/1317) — gate de 70% atendido |
+| Testes automatizados | **53 testes, 0 falhas, 0 erros** |
+| Cobertura de linhas | **70,66%** (956/1353) — gate de 70% atendido |
 | Smoke HTTP | **OK** (health, login, state, claim, input, MJPEG, logout) |
 | E2E de interface | **OK** em Chromium headless (demo) |
 | DAST baseline (ZAP) | **0 FAIL**, 3 WARN, 65 PASS |
 | Captura real | Fluxo HTTP OK; **imagem preta no Wayland/XWayland** (limitação documentada) |
-| TV física | **Não validada** (sem acesso ao modelo alvo) |
+| TV física | Página demo carregou; stream e controles pendentes |
 
 ## 2. Testes automatizados
 
@@ -27,7 +27,7 @@ Comando:
 Saída relevante:
 
 ```text
-Tests run: 52, Failures: 0, Errors: 0, Skipped: 0
+Tests run: 53, Failures: 0, Errors: 0, Skipped: 0
 All coverage checks have been met.
 BUILD SUCCESS
 ```
@@ -45,19 +45,19 @@ BUILD SUCCESS
 | `FrameHubTest` | 3 | subscribe/publish/unsubscribe e última moldura |
 | `CaptureServiceTest` | 2 | captura periódica e erro da fonte |
 | `HttpApiIntegrationTest` | 10 | login, cookie, CSRF, claim 409, input 204, stream, heartbeat, disconnect, logout |
-| `NetworkInfoTest` | 1 | descoberta de IPv4 |
-| **Total** | **52** | |
+| `NetworkInfoTest` | 2 | IPv4 da LAN e filtro de interfaces virtuais |
+| **Total** | **53** | |
 
 Apoio: `MutableClock` e `RecordingInputSink` (dublês determinísticos).
 
 ### Cobertura JaCoCo
 
 ```text
-INSTRUCTION  4068/5691  71,48%
-BRANCH        345/610   56,56%
-LINE          935/1317  70,99%
-COMPLEXITY    267/532   50,19%
-METHOD        142/195   72,82%
+INSTRUCTION  4157/5829  71,32%
+BRANCH        361/654   55,20%
+LINE          956/1353  70,66%
+COMPLEXITY    272/556   48,92%
+METHOD        144/197   73,10%
 ```
 
 O relatório inclui `Main` e `Robot*`, que não são exercitados no build headless.
@@ -95,6 +95,18 @@ Fluxo validado:
 7. Modal de teclado envia `type=text&text=Ola%20TV`.
 8. **Sair** encerra a sessão e volta para `/login`.
 9. Console do navegador: **nenhum erro**.
+
+### 4.1 Conectividade em TV física
+
+Em 2026-10-23 o modo demo foi aberto no navegador de uma TV física da rede
+`192.168.0.0/24` via `http://192.168.0.108:8090` e a página carregou. O modelo da TV
+não foi registrado. Login, stream, controles e teclado na TV ainda precisam de
+homologação formal.
+
+O servidor nativo estava bloqueado pelo UFW (`DEFAULT_INPUT_POLICY=DROP`). Para o
+teste, a porta foi publicada via Docker (`-p 8090:8090`), que usa a cadeia FORWARD
+do Docker e não passa pelo INPUT do UFW. A solução permanente é liberar a porta na
+LAN com `ufw allow from 192.168.0.0/24 to any port 8090 proto tcp`.
 
 Requisições observadas (extrato):
 
@@ -200,7 +212,7 @@ casos continuam cobertos pelos testes de integração e revisão manual.
 | RF-013 logout | `HttpApiIntegrationTest`, E2E | OK |
 | RF-014 demo | `HttpApiIntegrationTest`, smoke, E2E | OK |
 | RNF segurança | headers, CSRF, rate limit, cookie, Semgrep 0 achados, ZAP 0 fail | OK no SAST/DAST baseline; pentest pendente |
-| RNF compatibilidade TV | Chromium 16:9 | Pendente (TV física não testada) |
+| RNF compatibilidade TV | Chromium 16:9 + página demo em TV física | Parcial (stream/controles na TV pendentes) |
 | RNF performance | captura real ≈4 fps | Pendente (não homologado) |
 
 ## 9. Lacunas e próximos testes

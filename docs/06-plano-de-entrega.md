@@ -29,16 +29,25 @@ java -jar target/espelha-tv.jar --token="minha-senha-forte"
 ```bash
 ./scripts/bootstrap-toolchain.sh
 ./scripts/build.sh
-./scripts/run.sh --token="minha-senha-forte"
+./scripts/run-real.sh --token="minha-senha-forte"
 ```
 
-### 2.3 Modo demo (sem captura de tela)
+### 2.3 Modo real (X11)
+
+```bash
+./scripts/run-real.sh --token="minha-senha-forte"
+```
+
+Em Wayland o script recusa por padrão; use uma sessão X11 nativa. Para tentar
+XWayland mesmo assim: `ESPELHATV_ALLOW_WAYLAND=1 ./scripts/run-real.sh ...`.
+
+### 2.4 Modo demo (sem captura de tela)
 ```bash
 ./scripts/run.sh --demo --token="demo"
 # abrir http://IP-DO-PC:8080 na TV
 ```
 
-### 2.4 Empacotamento nativo (opcional)
+### 2.5 Empacotamento nativo (opcional)
 ```bash
 jpackage --type app-image --name EspelhaTV \
   --input target --main-jar espelha-tv.jar \
@@ -67,7 +76,7 @@ para `develop` e `main`:
 
 - checkout;
 - Temurin 21 com cache Maven;
-- `mvn -B clean verify` (52 testes + gate JaCoCo de 70% de linhas);
+- `mvn -B clean verify` (53 testes + gate JaCoCo de 70% de linhas);
 - upload do relatório `target/site/jacoco/`.
 
 ## 5. Checklist anti-retrabalho
@@ -103,13 +112,13 @@ para `develop` e `main`:
 
 | Item | Status |
 |---|---|
-| Código e JAR | Pronto (`mvn clean verify`, 52 testes) |
-| Cobertura | 70,99% de linhas; gate de 70% ativo |
+| Código e JAR | Pronto (`mvn clean verify`, 53 testes) |
+| Cobertura | 70,66% de linhas; gate de 70% ativo |
 | Demo + smoke HTTP | Validados |
 | UI em Chromium 1280×720 | Validada (login, claim, input, teclado, logout) |
 | Captura real X11 | Pendente de sessão X11 nativa |
 | Wayland | Captura preta via XWayland; documentado |
-| TV física | Pendente |
+| TV física | Página demo abriu; stream e controles pendentes |
 | SAST (Semgrep) | 0 achados em 167 regras |
 | DAST baseline (ZAP) | 0 fail, 3 warn; pentest autenticado pendente |
 | Tag `v1.0.0` | Pendente de homologação em TV real |

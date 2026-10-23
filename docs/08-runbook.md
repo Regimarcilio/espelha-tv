@@ -18,7 +18,7 @@ Procedimentos para subir, verificar, diagnosticar e encerrar o Espelha-TV em red
 ./scripts/build.sh                 # mvn clean verify + JAR
 ```
 
-Saída esperada: `BUILD SUCCESS`, 52 testes e `JAR: .../target/espelha-tv.jar`.
+Saída esperada: `BUILD SUCCESS`, 53 testes e `JAR: .../target/espelha-tv.jar`.
 
 ## 3. Subir o servidor
 
@@ -31,8 +31,11 @@ Saída esperada: `BUILD SUCCESS`, 52 testes e `JAR: .../target/espelha-tv.jar`.
 ### Captura real
 
 ```bash
-./scripts/run.sh --token="uma-senha-forte"
+./scripts/run-real.sh --token="uma-senha-forte"
 ```
+
+O wrapper recusa Wayland por padrão (captura preta via XWayland). Em X11 nativo,
+funciona com `DISPLAY` definido.
 
 ### Porta/resolução customizadas
 
@@ -56,7 +59,7 @@ After=graphical-session.target
 Type=simple
 Environment=ESPELHATV_TOKEN=troque-este-token
 Environment=DISPLAY=:0
-ExecStart=/home/SEU_USUARIO/PROJETOS/espelha-tv/scripts/run.sh --port=8080
+ExecStart=/home/SEU_USUARIO/PROJETOS/espelha-tv/scripts/run-real.sh --port=8080
 Restart=on-failure
 RestartSec=3
 
@@ -111,6 +114,7 @@ Smoke automatizado:
 | Sintoma | Causa provável | Ação |
 |---|---|---|
 | TV não abre a página | IP/porta errados, firewall, `--bind` restrito | `curl` do próprio PC; conferir `hostname -I`, regra de firewall e `ss -ltnp` |
+| UFW bloqueia a porta | `DEFAULT_INPUT_POLICY=DROP` | `sudo ufw allow from 192.168.0.0/24 to any port 8090 proto tcp`; conferir `/var/log/ufw.log` |
 | `/health` OK, mas TV não conecta | isolamento de clientes/Wi-Fi (AP isolation) | desativar isolamento ou usar a mesma rede/VLAN |
 | `401` no login | token errado/expirado (novo processo gera outro) | usar o token impresso no start ou definir `--token` |
 | `403` em `/api/input` | sem cookie, sem header CSRF ou token de controle inválido | relogar, enviar `X-EspelhaTV: 1`, refazer claim |

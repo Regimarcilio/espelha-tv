@@ -4,7 +4,7 @@ Transmissão da tela de um PC para o navegador de uma TV Smart, em rede local fe
 O PC roda um servidor Java; a TV abre uma página e recebe vídeo **MJPEG** por HTTP.
 O controle de mouse/teclado é opcional, exclusivo de um dispositivo por vez.
 
-**Status:** MVP `1.0.0` implementado, com 52 testes automatizados, smoke test HTTP e E2E em Chromium.
+**Status:** MVP `1.0.0` implementado, com 53 testes automatizados, smoke test HTTP e E2E em Chromium.
 
 ## Destaques
 
@@ -53,8 +53,11 @@ Smoke test automatizado (health, login, claim, input, MJPEG e logout):
 ### 3. Executar com captura real
 
 ```bash
-./scripts/run.sh --token="uma-senha-forte"
+./scripts/run-real.sh --token="uma-senha-forte"
 ```
+
+O script recusa iniciar em Wayland por padrão, porque a captura via XWayland pode
+sair preta. Use uma sessão X11 nativa ou `./scripts/run.sh --demo`.
 
 O servidor imprime a URL e o token (se gerado). Informe o token na tela de login da TV.
 
@@ -146,9 +149,9 @@ O stream usa boundary `frame`; cada parte tem `Content-Type: image/jpeg` e `X-Se
 mvn test                    # somente testes
 ```
 
-- **52 testes** JUnit 5: config, auth/sessão, controle, input, captura, JPEG, FrameHub,
+- **53 testes** JUnit 5: config, auth/sessão, controle, input, captura, JPEG, FrameHub,
   API HTTP e ciclo de vida.
-- **Cobertura JaCoCo:** ~71% de linhas (inclui classes de plataforma não exercitadas no
+- **Cobertura JaCoCo:** 70,66% de linhas (inclui classes de plataforma não exercitadas no
   headless, como `Robot*` e `Main`); o build exige mínimo de 70% de linhas.
 - **Smoke test:** `./scripts/smoke-demo.sh` valida o fluxo ponta a ponta com `curl`.
 - **E2E manual/Playwright:** login, stream 1280×720, claim, setas/Enter, Escape, teclado,

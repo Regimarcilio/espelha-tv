@@ -143,10 +143,10 @@ Velocidade inicial estimada: **20–25 pts/sprint** (1 dev). Ajustar após o pri
 | US-09 Texto | Concluída | `InputControllerTest`, E2E |
 | US-10 Estado | Concluída | `HttpApiIntegrationTest`, smoke, E2E |
 | US-11 Login UI | Concluída | E2E (login, erro, redirect) |
-| US-12 Visualização | Concluída (Chromium) | E2E 1280×720 + reconexão; TV física pendente |
+| US-12 Visualização | Parcial | E2E Chromium OK; página demo abriu em TV física; stream/controles na TV pendentes |
 | US-13 Claim/release UI | Concluída | E2E, teste de disconnect com carência de 3 s |
 | US-14 Controle remoto | Parcial | setas/Enter/Escape/teclado validados em Chromium; TV física pendente |
-| US-15 Testes | Concluída | 52 testes, JaCoCo 70,99% de linhas |
+| US-15 Testes | Concluída | 53 testes, JaCoCo 70,66% de linhas |
 | US-16 Segurança | Concluída (baseline) | headers, CSP/COOP/COEP/CORP, CSRF, rate limit, cookie; Semgrep 0 achados; ZAP 0 fail/3 warn |
 | US-17 Documentação | Concluída | README, SRS, arquitetura, ADRs, 05–08 |
 

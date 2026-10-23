@@ -12,7 +12,7 @@ Evidências da versão **1.0.0**, executadas em **2026-10-23** no PC de desenvol
 | Smoke HTTP | **OK** (health, login, state, claim, input, MJPEG, logout) |
 | E2E de interface | **OK** em Chromium headless (demo) |
 | DAST baseline (ZAP) | **0 FAIL**, 3 WARN, 65 PASS |
-| Captura real | **OK em Xorg** (1280×720, luminância 31,32); preta no Wayland/XWayland |
+| Captura real | **OK em Xorg**; ajuste atual 1600×900/q0.80; preta no Wayland/XWayland |
 | TV física | Página demo carregou; stream e controles pendentes |
 
 ## 2. Testes automatizados
@@ -148,7 +148,30 @@ Conclusões:
 - Injeção real de mouse/teclado ainda não foi homologada em TV física; o teste
   acima valida captura e stream.
 
-### 5.2 Wayland — limitação conhecida
+### 5.2 Ajuste de nitidez para TV HD
+
+A TV LG 32" HD reportou imagem sem nitidez com o padrão 1280×720/q0.60, pois o
+navegador amplia o frame para o painel 1366×768. Foi adotado **1600×900/q0.80**
+como meio termo: o painel HD reduz 1600→1366 (supersampling), enquanto uma TV Full
+HD ainda faz upscale moderado.
+
+Medição com `scheduleAtFixedRate` (10 s de stream, Xorg, tela 1920×1080):
+
+| Configuração | Quadros/10 s | JPEG médio |
+|---|---:|---:|
+| 1280×720 / q0.80 | 50 | ~172 KB |
+| 1366×768 / q0.80 | 56 | ~194 KB |
+| 1600×900 / q0.80 | 44 | ~233 KB |
+
+O `scheduleWithFixedDelay` anterior somava o tempo do encode ao período e entregava
+≈4 fps; com taxa fixa o mesmo hardware passou a ≈5 fps em 1600×900. A meta de 10 fps
+continua pendente de otimização (captura + escala + JPEG dominam o ciclo).
+
+Presets disponíveis por CLI: 1366×768 (HD), 1600×900 (meio termo) e 1920×1080
+(Full HD). A escolha é manual; detecção automática por cliente exigiria negociar a
+resolução com o navegador da TV.
+
+### 5.3 Wayland — limitação conhecida
 
 Ambiente: `DISPLAY=:0`, `WAYLAND_DISPLAY=wayland-0`, tela 1920×1080.
 
@@ -241,7 +264,7 @@ casos continuam cobertos pelos testes de integração e revisão manual.
 | RF-014 demo | `HttpApiIntegrationTest`, smoke, E2E | OK |
 | RNF segurança | headers, CSRF, rate limit, cookie, Semgrep 0 achados, ZAP 0 fail | OK no SAST/DAST baseline; pentest pendente |
 | RNF compatibilidade TV | Chromium 16:9 + página demo em TV física | Parcial (stream/controles na TV pendentes) |
-| RNF performance | captura real ≈4 fps | Pendente (não homologado) |
+| RNF performance | captura real ≈5 fps em 1600×900 | Pendente (meta 10 fps não atingida) |
 
 ## 9. Lacunas e próximos testes
 

@@ -61,6 +61,25 @@ sair preta. Use uma sessão X11 nativa ou `./scripts/run.sh --demo`.
 
 O servidor imprime a URL e o token (se gerado). Informe o token na tela de login da TV.
 
+### 4. Nitidez e resolução
+
+O stream não precisa ser 1280×720. Para TVs HD (1366×768), usar uma resolução
+próxima ou acima da tela reduz o desfoque causado pelo upscale do navegador:
+
+```bash
+# HD nativo (mais nítido em painel 1366×768)
+./scripts/run-real.sh --width=1366 --height=768 --quality=0.80 --fps=10
+
+# Meio termo para HD/Full HD
+./scripts/run-real.sh --width=1600 --height=900 --quality=0.80 --fps=10
+
+# Full HD (mais banda/CPU)
+./scripts/run-real.sh --width=1920 --height=1080 --quality=0.80 --fps=10
+```
+
+O padrão é 1280×720 com qualidade JPEG 0.60 (mais leve). A rotina de captura usa
+taxa fixa: se um quadro demorar, o próximo não espera um período inteiro adicional.
+
 ## Acesso pela TV
 
 1. Descubra o IPv4 do PC:

@@ -41,6 +41,17 @@ java -jar target/espelha-tv.jar --token="minha-senha-forte"
 Em Wayland o script recusa por padrão; use uma sessão X11 nativa. Para tentar
 XWayland mesmo assim: `ESPELHATV_ALLOW_WAYLAND=1 ./scripts/run-real.sh ...`.
 
+Presets de nitidez:
+
+| Alvo | Comando |
+|---|---|
+| HD 1366×768 | `--width=1366 --height=768 --quality=0.80` |
+| Meio termo | `--width=1600 --height=900 --quality=0.80` |
+| Full HD | `--width=1920 --height=1080 --quality=0.80` |
+
+O padrão `1280×720 / 0.60` é o mais leve. Em painel HD, 1280 é ampliado pelo
+navegador e pode parecer borrado; 1600×900 costuma ser o melhor compromisso.
+
 ### 2.4 Modo demo (sem captura de tela)
 ```bash
 ./scripts/run.sh --demo --token="demo"

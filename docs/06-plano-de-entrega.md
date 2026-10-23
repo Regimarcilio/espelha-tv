@@ -116,7 +116,7 @@ para `develop` e `main`:
 | Cobertura | 70,66% de linhas; gate de 70% ativo |
 | Demo + smoke HTTP | Validados |
 | UI em Chromium 1280×720 | Validada (login, claim, input, teclado, logout) |
-| Captura real X11 | Pendente de sessão X11 nativa |
+| Captura real X11 | Validada em Xorg (`demo:false`, 1280×720, luminância 31,32) |
 | Wayland | Captura preta via XWayland; documentado |
 | TV física | Página demo abriu; stream e controles pendentes |
 | SAST (Semgrep) | 0 achados em 167 regras |

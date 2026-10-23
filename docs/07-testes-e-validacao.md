@@ -12,7 +12,7 @@ Evidências da versão **1.0.0**, executadas em **2026-10-23** no PC de desenvol
 | Smoke HTTP | **OK** (health, login, state, claim, input, MJPEG, logout) |
 | E2E de interface | **OK** em Chromium headless (demo) |
 | DAST baseline (ZAP) | **0 FAIL**, 3 WARN, 65 PASS |
-| Captura real | Fluxo HTTP OK; **imagem preta no Wayland/XWayland** (limitação documentada) |
+| Captura real | **OK em Xorg** (1280×720, luminância 31,32); preta no Wayland/XWayland |
 | TV física | Página demo carregou; stream e controles pendentes |
 
 ## 2. Testes automatizados
@@ -121,6 +121,34 @@ token=...&type=text&text=Ola%20TV
 > verificação versionada e reproduzível no CI.
 
 ## 5. Captura real (não-demo)
+
+### 5.1 Xorg — validado
+
+Ambiente: `XDG_SESSION_TYPE=x11`, `DISPLAY=:0`, tela 1920×1080, servidor Xorg.
+
+```bash
+./scripts/run-real.sh --port=18090 --bind=127.0.0.1 --token=real
+curl -b cookie.txt --max-time 2 http://127.0.0.1:18090/stream -o /tmp/stream.bin
+```
+
+Resultado:
+
+| Métrica | Valor |
+|---|---|
+| Estado da API | `demo:false`, `source:"Tela primária 1920x1080"` |
+| Bytes recebidos em 2 s | 979.057 |
+| Primeiro JPEG | 108.278 bytes, 1280×720 |
+| Luminância média | **31,32** (imagem real, não preta) |
+| Erro de captura | nenhum |
+
+Conclusões:
+
+- A captura real funciona em sessão Xorg nativa.
+- O stream entrega JPEGs válidos em 1280×720 a partir de uma tela 1920×1080.
+- Injeção real de mouse/teclado ainda não foi homologada em TV física; o teste
+  acima valida captura e stream.
+
+### 5.2 Wayland — limitação conhecida
 
 Ambiente: `DISPLAY=:0`, `WAYLAND_DISPLAY=wayland-0`, tela 1920×1080.
 

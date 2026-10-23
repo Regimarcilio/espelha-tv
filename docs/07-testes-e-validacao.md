@@ -137,7 +137,25 @@ Conclusões:
 - Taxa observada ≈4 fps no cenário preto (1920×1080 → 1280×720), abaixo dos 10 fps
   configurados; **performance real não foi homologada**.
 
-## 6. Matriz de aceite
+## 6. SAST e dependências
+
+Semgrep 1.181.1 em container oficial, regras `p/java`, `p/secrets` e
+`p/owasp-top-ten`:
+
+```bash
+docker run --rm -v "$PWD:/src" -w /src semgrep/semgrep:latest \
+  semgrep scan --metrics=off --config p/java --config p/secrets \
+  --config p/owasp-top-ten src scripts pom.xml
+```
+
+Resultado: **0 achados** em 36 arquivos e 167 regras executadas, incluindo Java,
+JavaScript, HTML e shell. Não há dependências de runtime; a árvore Maven contém
+somente JUnit 5 em escopo `test`.
+
+Ressalva: Semgrep é SAST estático e não substitui DAST, teste de intrusão nem
+revisão manual de lógica de autorização.
+
+## 7. Matriz de aceite
 
 | Requisito | Evidência | Status |
 |---|---|---|
@@ -155,16 +173,16 @@ Conclusões:
 | RF-012 reconexão | E2E + teste de disconnect | OK |
 | RF-013 logout | `HttpApiIntegrationTest`, E2E | OK |
 | RF-014 demo | `HttpApiIntegrationTest`, smoke, E2E | OK |
-| RNF segurança | headers, CSRF, rate limit, cookie, revisão manual | Parcial (SAST formal pendente) |
+| RNF segurança | headers, CSRF, rate limit, cookie, Semgrep 0 achados | OK no SAST; DAST pendente |
 | RNF compatibilidade TV | Chromium 16:9 | Pendente (TV física não testada) |
 | RNF performance | captura real ≈4 fps | Pendente (não homologado) |
 
-## 7. Lacunas e próximos testes
+## 8. Lacunas e próximos testes
 
 1. **TV física**: login, MJPEG, fullscreen, setas/Enter, teclado USB e botão Voltar.
 2. **X11 nativo**: confirmar captura visual e latência; comparar 720p/1080p.
 3. **Input real**: validar `RobotInputSink` em ambiente controlado (mouse/teclado reais).
 4. **Soak test**: 2 h com 1 espectador + 1 controlador; memória, reconexões e vazamentos.
-5. **Segurança**: SAST/DAST formal; teste de força bruta e headers em proxy.
+5. **Segurança**: DAST formal; teste de força bruta e headers em proxy.
 6. **Performance**: medir captura + escala + JPEG + rede em 720p e 1080p.
 7. **Reconexão do controlador**: fechar/abrir stream dentro da carência de 3 s.

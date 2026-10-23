@@ -110,7 +110,8 @@ para `develop` e `main`:
 | Captura real X11 | Pendente de sessão X11 nativa |
 | Wayland | Captura preta via XWayland; documentado |
 | TV física | Pendente |
-| SAST/DAST formal | Pendente |
+| SAST (Semgrep) | 0 achados em 167 regras |
+| DAST formal | Pendente |
 | Tag `v1.0.0` | Pendente de homologação em TV real |
 
 Comandos de fechamento:

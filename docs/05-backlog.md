@@ -147,9 +147,9 @@ Velocidade inicial estimada: **20–25 pts/sprint** (1 dev). Ajustar após o pri
 | US-13 Claim/release UI | Concluída | E2E, teste de disconnect com carência de 3 s |
 | US-14 Controle remoto | Parcial | setas/Enter/Escape/teclado validados em Chromium; TV física pendente |
 | US-15 Testes | Concluída | 52 testes, JaCoCo 70,99% de linhas |
-| US-16 Segurança | Parcial | headers, CSP, CSRF, rate limit, cookie e revisão manual; SAST formal pendente |
+| US-16 Segurança | Parcial | headers, CSP, CSRF, rate limit, cookie; Semgrep 0 achados; DAST pendente |
 | US-17 Documentação | Concluída | README, SRS, arquitetura, ADRs, 05–08 |
 
 Sprints 0–3 concluídas para o escopo demo/desktop. Pendências de homologação:
-TV física, sessão X11 nativa, input real, soak test, SAST/DAST e medição formal de
+TV física, sessão X11 nativa, input real, soak test, DAST e medição formal de
 latência/FPS.

@@ -153,6 +153,8 @@ mvn test                    # somente testes
 - **Smoke test:** `./scripts/smoke-demo.sh` valida o fluxo ponta a ponta com `curl`.
 - **E2E manual/Playwright:** login, stream 1280×720, claim, setas/Enter, Escape, teclado,
   logout e ausência de erros de console foram validados em Chromium headless.
+- **SAST:** Semgrep (Java/secrets/OWASP) com **0 achados** em 167 regras; sem
+  dependências de runtime.
 
 ## Estrutura
 

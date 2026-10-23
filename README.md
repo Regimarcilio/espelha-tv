@@ -181,7 +181,7 @@ scripts/                     bootstrap, build, run, smoke
   faça port forwarding no roteador.
 - Token de acesso comparado em tempo constante; nunca é logado nem retornado pela API.
 - Cookie de sessão opaco, `HttpOnly`, `SameSite=Strict`, TTL deslizante.
-- CSP restritiva, `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy: no-referrer`.
+- CSP restritiva, `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy: no-referrer`, isolamento COOP/COEP/CORP.
 - Sem CORS; POST autenticado exige header CSRF; login com rate limit por IP.
 - Nada é gravado em disco; frames existem apenas em memória.
 

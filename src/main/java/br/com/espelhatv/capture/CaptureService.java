@@ -53,7 +53,7 @@ public final class CaptureService implements AutoCloseable {
             return;
         }
         long period = Math.max(20L, 1_000L / fps);
-        executor.scheduleWithFixedDelay(this::tick, 0, period, TimeUnit.MILLISECONDS);
+        executor.scheduleAtFixedRate(this::tick, 0, period, TimeUnit.MILLISECONDS);
     }
 
     private void tick() {

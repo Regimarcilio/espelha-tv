@@ -11,6 +11,7 @@ Evidências da versão **1.0.0**, executadas em **2026-10-23** no PC de desenvol
 | Cobertura de linhas | **70,99%** (935/1317) — gate de 70% atendido |
 | Smoke HTTP | **OK** (health, login, state, claim, input, MJPEG, logout) |
 | E2E de interface | **OK** em Chromium headless (demo) |
+| DAST baseline (ZAP) | **0 FAIL**, 3 WARN, 65 PASS |
 | Captura real | Fluxo HTTP OK; **imagem preta no Wayland/XWayland** (limitação documentada) |
 | TV física | **Não validada** (sem acesso ao modelo alvo) |
 
@@ -155,7 +156,32 @@ somente JUnit 5 em escopo `test`.
 Ressalva: Semgrep é SAST estático e não substitui DAST, teste de intrusão nem
 revisão manual de lógica de autorização.
 
-## 7. Matriz de aceite
+## 7. DAST baseline (OWASP ZAP)
+
+Servidor demo em `127.0.0.1:18080`, scan passivo/ativo baseline do ZAP em container:
+
+```bash
+docker run --rm --network host -v /tmp/zap:/zap/wrk:rw zaproxy/zap-stable:latest \
+  zap-baseline.py -t http://127.0.0.1:18080 -m 2 -J report.json -r report.html
+```
+
+Resultado: **0 FAIL**, **3 WARN**, **65 PASS** em 8 URLs.
+
+| Alerta | Avaliação | Ação |
+|---|---|---|
+| Sensitive Information in URL (10024) | O ZAP injetou `?token=ZAP`; o app não lê token da query e agora responde 302 removendo a query | Sem segredo real; manter a limpeza |
+| Non-Storable Content (10049) | `no-store`/redirects intencionais para sessão e API | Aceito por design |
+| Modern Web Application (10109) | Informativo (SPA/HTML5) | Nenhuma |
+
+Hardening aplicado após o primeiro scan: `Cross-Origin-Opener-Policy`,
+`Cross-Origin-Embedder-Policy`, `Cross-Origin-Resource-Policy` e remoção de query
+na rota `/login`. O E2E em Chromium foi repetido após a mudança (stream, claim,
+input, teclado e logout continuam funcionando).
+
+O baseline não cobre fluxos autenticados de input/claim nem CSRF por POST; esses
+casos continuam cobertos pelos testes de integração e revisão manual.
+
+## 8. Matriz de aceite
 
 | Requisito | Evidência | Status |
 |---|---|---|
@@ -173,16 +199,16 @@ revisão manual de lógica de autorização.
 | RF-012 reconexão | E2E + teste de disconnect | OK |
 | RF-013 logout | `HttpApiIntegrationTest`, E2E | OK |
 | RF-014 demo | `HttpApiIntegrationTest`, smoke, E2E | OK |
-| RNF segurança | headers, CSRF, rate limit, cookie, Semgrep 0 achados | OK no SAST; DAST pendente |
+| RNF segurança | headers, CSRF, rate limit, cookie, Semgrep 0 achados, ZAP 0 fail | OK no SAST/DAST baseline; pentest pendente |
 | RNF compatibilidade TV | Chromium 16:9 | Pendente (TV física não testada) |
 | RNF performance | captura real ≈4 fps | Pendente (não homologado) |
 
-## 8. Lacunas e próximos testes
+## 9. Lacunas e próximos testes
 
 1. **TV física**: login, MJPEG, fullscreen, setas/Enter, teclado USB e botão Voltar.
 2. **X11 nativo**: confirmar captura visual e latência; comparar 720p/1080p.
 3. **Input real**: validar `RobotInputSink` em ambiente controlado (mouse/teclado reais).
 4. **Soak test**: 2 h com 1 espectador + 1 controlador; memória, reconexões e vazamentos.
-5. **Segurança**: DAST formal; teste de força bruta e headers em proxy.
+5. **Segurança**: pentest/DAST autenticado; teste de força bruta e headers em proxy.
 6. **Performance**: medir captura + escala + JPEG + rede em 720p e 1080p.
 7. **Reconexão do controlador**: fechar/abrir stream dentro da carência de 3 s.

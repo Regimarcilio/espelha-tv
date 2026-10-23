@@ -141,6 +141,11 @@ public final class HttpApi implements AutoCloseable {
                 methodNotAllowed(exchange, "GET");
                 return;
             }
+            if (exchange.getRequestURI().getRawQuery() != null) {
+                // Não aceita token/segredo em query string; o login é sempre POST.
+                redirect(exchange, "/login");
+                return;
+            }
             if (session(exchange) != null) {
                 redirect(exchange, "/");
             } else if (!staticFiles.serve(exchange, "login.html")) {
@@ -582,6 +587,9 @@ public final class HttpApi implements AutoCloseable {
         headers.set("X-Frame-Options", "DENY");
         headers.set("Referrer-Policy", "no-referrer");
         headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+        headers.set("Cross-Origin-Opener-Policy", "same-origin");
+        headers.set("Cross-Origin-Embedder-Policy", "require-corp");
+        headers.set("Cross-Origin-Resource-Policy", "same-origin");
         headers.set("Content-Security-Policy",
                 "default-src 'self'; img-src 'self' data:; style-src 'self'; "
                         + "script-src 'self'; connect-src 'self'; frame-ancestors 'none'; "

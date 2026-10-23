@@ -64,6 +64,20 @@ class HttpApiIntegrationTest {
         HttpResponse<String> loginPage = get("/login", null);
         assertEquals(200, loginPage.statusCode());
         assertTrue(loginPage.body().contains("Espelha-TV"));
+        assertEquals("DENY", loginPage.headers().firstValue("X-Frame-Options").orElse(""));
+        assertEquals("nosniff", loginPage.headers().firstValue("X-Content-Type-Options").orElse(""));
+        assertEquals("same-origin",
+                loginPage.headers().firstValue("Cross-Origin-Opener-Policy").orElse(""));
+        assertEquals("require-corp",
+                loginPage.headers().firstValue("Cross-Origin-Embedder-Policy").orElse(""));
+        assertEquals("same-origin",
+                loginPage.headers().firstValue("Cross-Origin-Resource-Policy").orElse(""));
+        assertTrue(loginPage.headers().firstValue("Content-Security-Policy")
+                .orElse("").contains("default-src 'self'"));
+
+        HttpResponse<String> loginWithQuery = get("/login?token=nao-deve-ficar-na-url", null);
+        assertEquals(302, loginWithQuery.statusCode());
+        assertEquals("/login", loginWithQuery.headers().firstValue("Location").orElse(""));
 
         HttpResponse<String> script = get("/app.js", null);
         assertEquals(200, script.statusCode());

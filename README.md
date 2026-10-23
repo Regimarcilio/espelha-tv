@@ -155,6 +155,8 @@ mvn test                    # somente testes
   logout e ausência de erros de console foram validados em Chromium headless.
 - **SAST:** Semgrep (Java/secrets/OWASP) com **0 achados** em 167 regras; sem
   dependências de runtime.
+- **DAST baseline:** OWASP ZAP com **0 falhas**, 3 avisos informativos/aceitos e
+  65 verificações aprovadas.
 
 ## Estrutura
 

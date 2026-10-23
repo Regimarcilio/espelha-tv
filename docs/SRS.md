@@ -235,7 +235,7 @@ Cenário: timeout libera
 | ID | Categoria | Requisito | Critério |
 |---|---|---|---|
 | NFR-001 | Desempenho | 720p a 10 fps em LAN, latência perceptual 150–400 ms | Demo OK; captura real no Wayland ≈4 fps, homologação pendente |
-| NFR-002 | Segurança | Token forte, cookie HttpOnly/SameSite, CSP, sem CORS, sem internet | Testes de auth/CSRF; Semgrep 0 achados; DAST pendente |
+| NFR-002 | Segurança | Token forte, cookie HttpOnly/SameSite, CSP, sem CORS, sem internet | Testes de auth/CSRF; Semgrep 0 achados; ZAP baseline 0 fail |
 | NFR-003 | Compatibilidade | Funcionar em webOS 3+ e Tizen 2016+ com MJPEG | Chromium 16:9 OK; TV física pendente |
 | NFR-004 | Portabilidade | Windows e Linux X11; Wayland documentado | `Robot` no PC; demo no CI |
 | NFR-005 | Usabilidade | Botões grandes, foco visível, setas/Enter mapeados | Teste com controle remoto |
@@ -303,7 +303,7 @@ Cenário: timeout libera
 
 Implementado e coberto por testes: RF-001 a RF-014 (demo), RNF-005 a RNF-009.
 Pendências de homologação: captura visual em X11 nativo, TV física (RNF-003), input
-real, performance (RNF-001) e DAST formal (NFR-002). Evidências em
+real, performance (RNF-001) e pentest autenticado (NFR-002). Evidências em
 [`07-testes-e-validacao.md`](07-testes-e-validacao.md).
 
 ## 9. Glossário

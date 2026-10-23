@@ -111,7 +111,7 @@ para `develop` e `main`:
 | Wayland | Captura preta via XWayland; documentado |
 | TV física | Pendente |
 | SAST (Semgrep) | 0 achados em 167 regras |
-| DAST formal | Pendente |
+| DAST baseline (ZAP) | 0 fail, 3 warn; pentest autenticado pendente |
 | Tag `v1.0.0` | Pendente de homologação em TV real |
 
 Comandos de fechamento:

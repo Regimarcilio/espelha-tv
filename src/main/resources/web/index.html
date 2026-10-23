@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Espelha-TV</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body class="app-page">
+  <header class="topbar">
+    <div class="brand">
+      <span id="connDot" class="conn-dot" aria-hidden="true"></span>
+      <span>Espelha-TV</span>
+    </div>
+    <div id="status" class="status" role="status" aria-live="polite">Conectando…</div>
+    <nav class="actions" aria-label="Controles da sessão">
+      <button id="claimBtn" class="primary" type="button">Assumir controle</button>
+      <button id="releaseBtn" class="danger" type="button" hidden>Liberar controle</button>
+      <button id="fullscreenBtn" type="button">Tela cheia</button>
+      <button id="logoutBtn" class="ghost" type="button">Sair</button>
+    </nav>
+  </header>
+
+  <main id="stage" class="stage" tabindex="-1">
+    <img id="stream" src="/stream" alt="Tela transmitida pelo PC" draggable="false">
+    <div id="connecting" class="connecting">Conectando ao stream…</div>
+
+    <div id="overlay" class="overlay" hidden>
+      <div class="overlay-card" role="dialog" aria-modal="true" aria-labelledby="overlayTitle">
+        <h2 id="overlayTitle">Controle ativo</h2>
+        <p id="overlayText">Setas movem o mouse. Enter clica. Escape libera o controle.</p>
+        <button id="overlayClose" class="primary" type="button">OK</button>
+      </div>
+    </div>
+  </main>
+
+  <footer class="bottombar">
+    <span id="modeLabel">Espectador</span>
+    <span id="viewersLabel"></span>
+    <button id="keyboardBtn" type="button" disabled>Teclado</button>
+  </footer>
+
+  <div id="keyboardModal" class="modal" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="keyboardTitle">
+      <h2 id="keyboardTitle">Enviar texto</h2>
+      <p class="muted">O texto vai para a janela ativa do PC. Use apenas ASCII.</p>
+      <input id="textInput" type="text" maxlength="128" autocomplete="off"
+             spellcheck="false" placeholder="Digite aqui…">
+      <div class="modal-actions">
+        <button id="textSend" class="primary" type="button">Enviar</button>
+        <button id="textCancel" class="ghost" type="button">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <noscript>Ative o JavaScript para visualizar e controlar a tela.</noscript>
+  <script src="/app.js"></script>
+</body>
+</html>

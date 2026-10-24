@@ -2,6 +2,9 @@ package br.com.espelhatv.capture;
 
 import java.awt.image.BufferedImage;
 import java.time.Instant;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -12,8 +15,10 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * Loop de captura -> escala -> JPEG -> publicação. Só captura quando há pelo
- * menos um espectador, evitando consumo de CPU ocioso.
+ * Pipeline de captura -> escala -> JPEG -> publicação. Captura e codificação
+ * rodam em threads separadas para que o tempo de JPEG não bloqueie a próxima
+ * captura; se o codificador atrasar, apenas o quadro mais recente é mantido.
+ * Só captura quando há pelo menos um espectador, evitando consumo de CPU ocioso.
  */
 public final class CaptureService implements AutoCloseable {
     private static final Logger LOG = Logger.getLogger("espelhatv.capture");
@@ -30,7 +35,9 @@ public final class CaptureService implements AutoCloseable {
     private final AtomicReference<String> lastError = new AtomicReference<>();
     private final AtomicReference<String> lastLoggedError = new AtomicReference<>();
     private final AtomicBoolean running = new AtomicBoolean();
-    private final ScheduledExecutorService executor;
+    private final BlockingQueue<BufferedImage> pendingFrames = new ArrayBlockingQueue<>(1);
+    private final ScheduledExecutorService captureExecutor;
+    private final ExecutorService encoderExecutor;
 
     public CaptureService(ScreenSource source, FrameHub hub, JpegEncoder encoder,
                           int fps, int maxWidth, int maxHeight, float quality) {
@@ -41,8 +48,13 @@ public final class CaptureService implements AutoCloseable {
         this.maxWidth = maxWidth;
         this.maxHeight = maxHeight;
         this.quality = quality;
-        this.executor = Executors.newSingleThreadScheduledExecutor(runnable -> {
+        this.captureExecutor = Executors.newSingleThreadScheduledExecutor(runnable -> {
             Thread thread = new Thread(runnable, "espelhatv-capture");
+            thread.setDaemon(true);
+            return thread;
+        });
+        this.encoderExecutor = Executors.newSingleThreadExecutor(runnable -> {
+            Thread thread = new Thread(runnable, "espelhatv-encoder");
             thread.setDaemon(true);
             return thread;
         });
@@ -52,12 +64,14 @@ public final class CaptureService implements AutoCloseable {
         if (!running.compareAndSet(false, true)) {
             return;
         }
+        encoderExecutor.execute(this::encodeLoop);
         long period = Math.max(20L, 1_000L / fps);
-        executor.scheduleAtFixedRate(this::tick, 0, period, TimeUnit.MILLISECONDS);
+        captureExecutor.scheduleAtFixedRate(this::captureTick, 0, period, TimeUnit.MILLISECONDS);
     }
 
-    private void tick() {
+    private void captureTick() {
         if (!running.get() || hub.viewerCount() == 0) {
+            pendingFrames.clear();
             return;
         }
         try {
@@ -66,19 +80,46 @@ public final class CaptureService implements AutoCloseable {
                 throw new IllegalStateException("Fonte de captura retornou imagem nula.");
             }
             BufferedImage scaled = FrameScaler.scale(raw, maxWidth, maxHeight);
-            byte[] jpeg = encoder.encode(scaled, quality);
-            Frame frame = new Frame(jpeg, sequence.incrementAndGet(),
-                    scaled.getWidth(), scaled.getHeight(), Instant.now());
-            lastFrame.set(frame);
-            lastError.set(null);
-            lastLoggedError.set(null);
-            hub.publish(frame);
+            // Mantém somente o quadro mais recente; o codificador pode estar ocupado.
+            pendingFrames.poll();
+            pendingFrames.offer(scaled);
         } catch (Exception | LinkageError e) {
-            String message = e.getClass().getSimpleName() + ": " + e.getMessage();
-            lastError.set(message);
-            if (!message.equals(lastLoggedError.getAndSet(message))) {
-                LOG.log(Level.WARNING, "Falha na captura de tela: " + message);
+            recordError(e);
+        }
+    }
+
+    private void encodeLoop() {
+        while (running.get()) {
+            try {
+                BufferedImage scaled = pendingFrames.poll(200, TimeUnit.MILLISECONDS);
+                if (scaled == null) {
+                    continue;
+                }
+                if (!running.get() || hub.viewerCount() == 0) {
+                    pendingFrames.clear();
+                    continue;
+                }
+                byte[] jpeg = encoder.encode(scaled, quality);
+                Frame frame = new Frame(jpeg, sequence.incrementAndGet(),
+                        scaled.getWidth(), scaled.getHeight(), Instant.now());
+                lastFrame.set(frame);
+                lastError.set(null);
+                lastLoggedError.set(null);
+                hub.publish(frame);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return;
+            } catch (Exception | LinkageError e) {
+                recordError(e);
             }
+        }
+    }
+
+    private void recordError(Throwable error) {
+        String message = error.getClass().getSimpleName() + ": " + error.getMessage();
+        lastError.set(message);
+        if (!message.equals(lastLoggedError.getAndSet(message))) {
+            LOG.log(Level.WARNING, "Falha na captura de tela: " + message);
         }
     }
 
@@ -101,7 +142,9 @@ public final class CaptureService implements AutoCloseable {
     @Override
     public void close() {
         running.set(false);
-        executor.shutdownNow();
+        captureExecutor.shutdownNow();
+        encoderExecutor.shutdownNow();
+        pendingFrames.clear();
         try {
             source.close();
         } catch (RuntimeException e) {

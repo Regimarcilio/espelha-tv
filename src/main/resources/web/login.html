@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Espelha-TV — Entrar</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body class="login-page">
+  <main class="login-card">
+    <div class="login-brand">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <h1>Espelha-TV</h1>
+    </div>
+    <p class="muted">Digite o token exibido no PC para acessar a tela.</p>
+    <form id="loginForm" novalidate>
+      <label for="token">Token de acesso</label>
+      <input id="token" name="token" type="password" autocomplete="current-password"
+             spellcheck="false" autocapitalize="characters" required autofocus>
+      <button type="submit" class="primary">Entrar</button>
+    </form>
+    <p id="error" class="error" role="alert" hidden></p>
+    <p class="hint">O token fica no terminal onde o servidor foi iniciado.</p>
+  </main>
+  <script src="/login.js"></script>
+</body>
+</html>

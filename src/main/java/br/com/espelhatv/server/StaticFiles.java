@@ -8,16 +8,18 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /** Serve os assets embutidos em src/main/resources/web. */
 public final class StaticFiles {
-    private static final Map<String, String> CONTENT_TYPES = Map.of(
-            "index.html", "text/html; charset=utf-8",
-            "login.html", "text/html; charset=utf-8",
-            "test-webrtc.html", "text/html; charset=utf-8",
-            "test-webrtc.css", "text/css; charset=utf-8",
-            "test-webrtc.js", "text/javascript; charset=utf-8",
-            "app.js", "text/javascript; charset=utf-8",
-            "login.js", "text/javascript; charset=utf-8",
-            "style.css", "text/css; charset=utf-8",
-            "favicon.svg", "image/svg+xml");
+    private static final Map<String, String> CONTENT_TYPES = Map.ofEntries(
+            Map.entry("index.html", "text/html; charset=utf-8"),
+            Map.entry("login.html", "text/html; charset=utf-8"),
+            Map.entry("test-webrtc.html", "text/html; charset=utf-8"),
+            Map.entry("test-webrtc.css", "text/css; charset=utf-8"),
+            Map.entry("test-webrtc.js", "text/javascript; charset=utf-8"),
+            Map.entry("diagnostico.html", "text/html; charset=utf-8"),
+            Map.entry("diagnostico.js", "text/javascript; charset=utf-8"),
+            Map.entry("app.js", "text/javascript; charset=utf-8"),
+            Map.entry("login.js", "text/javascript; charset=utf-8"),
+            Map.entry("style.css", "text/css; charset=utf-8"),
+            Map.entry("favicon.svg", "image/svg+xml"));
 
     private final Map<String, byte[]> cache = new ConcurrentHashMap<>();
 

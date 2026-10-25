@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Diagnóstico TV - Espelha-TV</title>
+  <link rel="stylesheet" href="/test-webrtc.css">
+</head>
+<body>
+  <div class="card">
+    <h1>Diagnóstico do navegador da TV</h1>
+    <div id="status" class="status">Toque em "Rodar diagnóstico".</div>
+    <div class="toolbar">
+      <button id="btnRun" class="btn-primary">Rodar diagnóstico</button>
+      <button id="btnHls" class="btn-secondary">Testar HLS</button>
+      <button id="btnWebrtc" class="btn-secondary">Abrir player WebRTC</button>
+      <button id="btnHlsPlayer" class="btn-secondary">Abrir player HLS</button>
+    </div>
+    <pre id="out" class="diag">aguardando...</pre>
+    <video id="hlsVideo" class="diag-video hidden" autoplay muted playsinline controls></video>
+    <p class="hint">
+      O player HLS usa o MediaMTX na porta 8888 (hls.js embutido) e costuma funcionar
+      em TVs onde o WebRTC não está disponível.
+    </p>
+  </div>
+  <script src="/diagnostico.js"></script>
+</body>
+</html>

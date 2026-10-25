@@ -11,11 +11,20 @@
     <h1>Teste WebRTC - Espelha-TV</h1>
     <div id="status" class="status err">Desconectado</div>
     <video id="video" autoplay playsinline muted></video>
-    <div>
+    <div class="toolbar">
       <button id="btnConnect" class="btn-primary">Conectar WebRTC (WHEP)</button>
-      <button id="btnDisconnect" class="btn-danger" disabled>Desconectar</button>
+      <button id="btnFull" class="btn-secondary">Tela cheia</button>
+      <button id="btnDisconnect" class="btn-danger" disabled>Sair</button>
     </div>
     <div id="stats" class="stats hidden"></div>
+    <p class="hint">
+      Se não conectar, abra o <a href="/diagnostico.html">diagnóstico da TV</a>
+      ou teste o player HLS: <a id="hlsLink" href="#">player HLS</a>.
+    </p>
+  </div>
+  <div id="floatBar">
+    <button id="btnFloatFull" class="btn-secondary">Tela cheia</button>
+    <button id="btnFloatExit" class="btn-danger">Sair</button>
   </div>
   <script src="/test-webrtc.js"></script>
 </body>

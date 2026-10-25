@@ -4,6 +4,7 @@ import br.com.espelhatv.capture.DemoScreenSource;
 import br.com.espelhatv.capture.RobotScreenSource;
 import br.com.espelhatv.capture.ScreenSource;
 import br.com.espelhatv.capture.ffmpeg.FFmpegProcessManager;
+import br.com.espelhatv.capture.ffmpeg.MjpegTap;
 import br.com.espelhatv.config.AppConfig;
 import br.com.espelhatv.input.InputSink;
 import br.com.espelhatv.input.NoopInputSink;
@@ -12,6 +13,7 @@ import br.com.espelhatv.server.AppServer;
 import br.com.espelhatv.util.NetworkInfo;
 import java.awt.AWTException;
 import java.io.IOException;
+import java.time.Clock;
 import java.util.concurrent.CountDownLatch;
 
 public final class Main {
@@ -57,6 +59,10 @@ public final class Main {
             } catch (Exception e) {
                 System.err.println("Não foi possível iniciar pipeline FFmpeg/WebRTC: " + e.getMessage());
                 System.err.println("Fallback para modo MJPEG...");
+                if (ffmpegManager != null) {
+                    ffmpegManager.close();
+                    ffmpegManager = null;
+                }
                 try {
                     source = new RobotScreenSource(config.drawCursor());
                     sink = new RobotInputSink();
@@ -87,7 +93,8 @@ public final class Main {
             System.out.println("Aviso: Wayland detectado; captura via X11/XWayland. Se a imagem ficar preta, use sessão X11 ou --demo.");
         }
 
-        AppServer server = new AppServer(config, source, sink);
+        boolean mjpegTapEnabled = ffmpegManager != null && MjpegTap.supported(config);
+        AppServer server = new AppServer(config, source, sink, Clock.systemUTC(), !mjpegTapEnabled);
         try {
             server.start();
         } catch (IOException e) {
@@ -98,9 +105,27 @@ public final class Main {
             return;
         }
 
-        printBanner(config, server.port());
+        MjpegTap mjpegTap = null;
+        if (mjpegTapEnabled) {
+            mjpegTap = new MjpegTap(config, server.hub());
+            try {
+                mjpegTap.start();
+            } catch (IOException e) {
+                System.err.println("Não foi possível iniciar MJPEG via ffmpeg: " + e.getMessage());
+                System.err.println("Fallback para captura Java...");
+                mjpegTap.close();
+                mjpegTap = null;
+                server.capture().start();
+            }
+        }
+
+        printBanner(config, server.port(), mjpegTap != null);
         final FFmpegProcessManager managerToClose = ffmpegManager;
+        final MjpegTap tapToClose = mjpegTap;
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            if (tapToClose != null) {
+                tapToClose.close();
+            }
             server.close();
             if (managerToClose != null) {
                 managerToClose.close();
@@ -112,11 +137,14 @@ public final class Main {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         } finally {
+            if (mjpegTap != null) {
+                mjpegTap.close();
+            }
             server.close();
         }
     }
 
-    private static void printBanner(AppConfig config, int port) {
+    private static void printBanner(AppConfig config, int port, boolean mjpegViaFfmpeg) {
         String host = switch (config.bind()) {
             case "0.0.0.0", "::", "[::]" -> NetworkInfo.localIpv4();
             default -> config.bind();
@@ -140,6 +168,13 @@ public final class Main {
                     + (config.ffmpegVaapiDevice().isBlank() ? ", libx264/" + config.ffmpegPreset() : ", VAAPI")
                     + ", captura " + config.ffmpegCapture());
             System.out.println(" WHIP........: " + config.ffmpegWhipUrl());
+            if (mjpegViaFfmpeg) {
+                System.out.println(" MJPEG.......: " + config.maxWidth() + "x" + config.maxHeight()
+                        + " @ " + config.fps() + "fps via ffmpeg (TV/navegador)");
+            } else {
+                System.out.println(" MJPEG.......: fallback Java " + config.fps() + " fps, até "
+                        + config.maxWidth() + "x" + config.maxHeight());
+            }
         } else {
             System.out.println(" Stream......: MJPEG " + config.fps() + " fps, até "
                     + config.maxWidth() + "x" + config.maxHeight()

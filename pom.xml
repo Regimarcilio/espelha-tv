@@ -51,6 +51,14 @@
         <groupId>org.jacoco</groupId>
         <artifactId>jacoco-maven-plugin</artifactId>
         <version>0.8.12</version>
+        <configuration>
+          <excludes>
+            <!-- Glue dependente de display/processos reais, validado por smoke test -->
+            <exclude>br/com/espelhatv/Main.*</exclude>
+            <exclude>br/com/espelhatv/capture/RobotScreenSource.*</exclude>
+            <exclude>br/com/espelhatv/input/RobotInputSink.*</exclude>
+          </excludes>
+        </configuration>
         <executions>
           <execution>
             <goals>

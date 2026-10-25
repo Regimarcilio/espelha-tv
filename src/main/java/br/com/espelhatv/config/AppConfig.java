@@ -20,7 +20,22 @@ public record AppConfig(
         int sessionTtlMinutes,
         boolean drawCursor,
         int screenIndex,
-        boolean demo) {
+        boolean demo,
+        // FFmpeg / WebRTC options
+        boolean ffmpegEnabled,
+        String ffmpegRtpHost,
+        int ffmpegRtpPort,
+        int ffmpegWidth,
+        int ffmpegHeight,
+        int ffmpegFps,
+        String ffmpegPreset,
+        int ffmpegBitrate,
+        int ffmpegQueueSize,
+        String ffmpegWhipUrl,
+        String ffmpegWhipBin,
+        String ffmpegVaapiDevice,
+        String ffmpegCapture
+) {
 
     public static final int DEFAULT_PORT = 8080;
     public static final String DEFAULT_BIND = "0.0.0.0";
@@ -30,6 +45,19 @@ public record AppConfig(
     public static final float DEFAULT_QUALITY = 0.60f;
     public static final int DEFAULT_CONTROL_TIMEOUT_SECONDS = 300;
     public static final int DEFAULT_SESSION_TTL_MINUTES = 720;
+    public static final boolean DEFAULT_FFMPEG_ENABLED = false;
+    public static final String DEFAULT_FFMPEG_RTP_HOST = "127.0.0.1";
+    public static final int DEFAULT_FFMPEG_RTP_PORT = 5004;
+    public static final int DEFAULT_FFMPEG_WIDTH = 1920;
+    public static final int DEFAULT_FFMPEG_HEIGHT = 1080;
+    public static final int DEFAULT_FFMPEG_FPS = 30;
+    public static final String DEFAULT_FFMPEG_PRESET = "ultrafast";
+    public static final int DEFAULT_FFMPEG_BITRATE = 8000;
+    public static final int DEFAULT_FFMPEG_QUEUE_SIZE = 2;
+    public static final String DEFAULT_FFMPEG_WHIP_URL = "http://127.0.0.1:8889/stream/whip";
+    public static final String DEFAULT_FFMPEG_WHIP_BIN = "tools/ffmpeg-whip";
+    public static final String DEFAULT_FFMPEG_VAAPI_DEVICE = "/dev/dri/renderD128";
+    public static final String DEFAULT_FFMPEG_CAPTURE = "x11grab";
 
     private static final String TOKEN_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
     private static final SecureRandom RANDOM = new SecureRandom();
@@ -65,6 +93,35 @@ public record AppConfig(
         if (screenIndex < 0) {
             throw new IllegalArgumentException("Índice de tela não pode ser negativo.");
         }
+        if (ffmpegEnabled) {
+            if (ffmpegRtpPort < 1 || ffmpegRtpPort > 65535) {
+                throw new IllegalArgumentException("Porta RTP FFmpeg inválida: " + ffmpegRtpPort);
+            }
+            if (ffmpegWidth < 320 || ffmpegWidth > 3840) {
+                throw new IllegalArgumentException("Largura FFmpeg inválida: " + ffmpegWidth);
+            }
+            if (ffmpegHeight < 240 || ffmpegHeight > 2160) {
+                throw new IllegalArgumentException("Altura FFmpeg inválida: " + ffmpegHeight);
+            }
+            if (ffmpegFps < 1 || ffmpegFps > 60) {
+                throw new IllegalArgumentException("FPS FFmpeg inválido: " + ffmpegFps);
+            }
+            if (ffmpegBitrate < 500 || ffmpegBitrate > 50000) {
+                throw new IllegalArgumentException("Bitrate FFmpeg inválido: " + ffmpegBitrate);
+            }
+            if (ffmpegQueueSize < 1 || ffmpegQueueSize > 10) {
+                throw new IllegalArgumentException("Queue size FFmpeg inválido: " + ffmpegQueueSize);
+            }
+            if (ffmpegWhipUrl == null || ffmpegWhipUrl.isBlank()) {
+                throw new IllegalArgumentException("URL WHIP do FFmpeg não pode ser vazia.");
+            }
+            if (ffmpegWhipBin == null || ffmpegWhipBin.isBlank()) {
+                throw new IllegalArgumentException("Binário WHIP do FFmpeg não pode ser vazio.");
+            }
+            if (!"x11grab".equals(ffmpegCapture) && !"stdin".equals(ffmpegCapture)) {
+                throw new IllegalArgumentException("Captura FFmpeg deve ser 'x11grab' ou 'stdin': " + ffmpegCapture);
+            }
+        }
     }
 
     public static AppConfig parse(String[] args) {
@@ -81,6 +138,19 @@ public record AppConfig(
         boolean cursor = true;
         int screen = 0;
         boolean demo = false;
+        boolean ffmpegEnabled = DEFAULT_FFMPEG_ENABLED;
+        String ffmpegRtpHost = DEFAULT_FFMPEG_RTP_HOST;
+        int ffmpegRtpPort = DEFAULT_FFMPEG_RTP_PORT;
+        int ffmpegWidth = DEFAULT_FFMPEG_WIDTH;
+        int ffmpegHeight = DEFAULT_FFMPEG_HEIGHT;
+        int ffmpegFps = DEFAULT_FFMPEG_FPS;
+        String ffmpegPreset = DEFAULT_FFMPEG_PRESET;
+        int ffmpegBitrate = DEFAULT_FFMPEG_BITRATE;
+        int ffmpegQueueSize = DEFAULT_FFMPEG_QUEUE_SIZE;
+        String ffmpegWhipUrl = stringEnv("ESPELHATV_FFMPEG_WHIP_URL", DEFAULT_FFMPEG_WHIP_URL);
+        String ffmpegWhipBin = stringEnv("ESPELHATV_FFMPEG_WHIP_BIN", DEFAULT_FFMPEG_WHIP_BIN);
+        String ffmpegVaapiDevice = stringEnv("ESPELHATV_FFMPEG_VAAPI_DEVICE", DEFAULT_FFMPEG_VAAPI_DEVICE);
+        String ffmpegCapture = stringEnv("ESPELHATV_FFMPEG_CAPTURE", DEFAULT_FFMPEG_CAPTURE).toLowerCase(Locale.ROOT);
 
         for (int i = 0; i < args.length; i++) {
             String arg = args[i];
@@ -130,6 +200,20 @@ public record AppConfig(
                 case "cursor" -> cursor = boolArg(key, value);
                 case "screen" -> screen = intArg(key, value);
                 case "demo" -> demo = boolArg(key, value);
+                // FFmpeg options
+                case "ffmpeg-enabled" -> ffmpegEnabled = boolArg(key, value);
+                case "ffmpeg-rtp-host" -> ffmpegRtpHost = value;
+                case "ffmpeg-rtp-port" -> ffmpegRtpPort = intArg(key, value);
+                case "ffmpeg-width" -> ffmpegWidth = intArg(key, value);
+                case "ffmpeg-height" -> ffmpegHeight = intArg(key, value);
+                case "ffmpeg-fps" -> ffmpegFps = intArg(key, value);
+                case "ffmpeg-preset" -> ffmpegPreset = value;
+                case "ffmpeg-bitrate" -> ffmpegBitrate = intArg(key, value);
+                case "ffmpeg-queue-size" -> ffmpegQueueSize = intArg(key, value);
+                case "ffmpeg-whip-url" -> ffmpegWhipUrl = value;
+                case "ffmpeg-whip-bin" -> ffmpegWhipBin = value;
+                case "ffmpeg-vaapi-device" -> ffmpegVaapiDevice = value == null ? "" : value.trim();
+                case "ffmpeg-capture" -> ffmpegCapture = value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
                 default -> throw new IllegalArgumentException("Opção desconhecida: --" + key + ". Use --help.");
             }
         }
@@ -140,7 +224,10 @@ public record AppConfig(
         }
 
         return new AppConfig(port, bind, token, generated, fps, width, height, quality,
-                controlTimeout, sessionTtl, cursor, screen, demo);
+                controlTimeout, sessionTtl, cursor, screen, demo,
+                ffmpegEnabled, ffmpegRtpHost, ffmpegRtpPort, ffmpegWidth, ffmpegHeight,
+                ffmpegFps, ffmpegPreset, ffmpegBitrate, DEFAULT_FFMPEG_QUEUE_SIZE,
+                ffmpegWhipUrl, ffmpegWhipBin, ffmpegVaapiDevice, ffmpegCapture);
     }
 
     public static String generateToken() {
@@ -216,6 +303,24 @@ public record AppConfig(
                   --cursor=true|false      Liga/desliga o cursor na captura
                   --screen=0               Tela a capturar (MVP: tela primária)
                   --demo                   Usa tela sintética e não controla o PC
+                  
+                Opções FFmpeg/WebRTC:
+                  --ffmpeg-enabled=true|false    Habilita pipeline FFmpeg nativo (padrão: false)
+                  --ffmpeg-rtp-host=IP           Host para RTP (padrão: 127.0.0.1)
+                  --ffmpeg-rtp-port=PORT         Porta RTP destino (padrão: 5004)
+                  --ffmpeg-width=W               Largura do encode (padrão: 1920)
+                  --ffmpeg-height=H              Altura do encode (padrão: 1080)
+                  --ffmpeg-fps=FPS               FPS alvo FFmpeg (padrão: 30)
+                  --ffmpeg-preset=PRESET         Preset x264 (padrão: ultrafast)
+                  --ffmpeg-bitrate=KBPS          Bitrate kbps (padrão: 8000)
+                  --ffmpeg-queue-size=N          Tamanho queue frames (padrão: 2)
+                  --ffmpeg-whip-url=URL          Endpoint WHIP do MediaMTX
+                                                 (padrão: http://127.0.0.1:8889/stream/whip)
+                  --ffmpeg-whip-bin=PATH         ffmpeg com muxer WHIP (padrão: tools/ffmpeg-whip)
+                  --ffmpeg-vaapi-device=PATH     Device VAAPI (padrão: /dev/dri/renderD128; vazio desliga)
+                  --ffmpeg-capture=MODE          Captura: x11grab (direto no ffmpeg) ou stdin (padrão: x11grab)
+
+                Opções gerais:
                   --help                   Mostra esta ajuda
 
                 Variáveis de ambiente:
@@ -242,6 +347,19 @@ public record AppConfig(
                 + ", drawCursor=" + drawCursor
                 + ", screenIndex=" + screenIndex
                 + ", demo=" + demo
+                + ", ffmpegEnabled=" + ffmpegEnabled
+                + ", ffmpegRtpHost=" + ffmpegRtpHost
+                + ", ffmpegRtpPort=" + ffmpegRtpPort
+                + ", ffmpegWidth=" + ffmpegWidth
+                + ", ffmpegHeight=" + ffmpegHeight
+                + ", ffmpegFps=" + ffmpegFps
+                + ", ffmpegPreset=" + ffmpegPreset
+                + ", ffmpegBitrate=" + ffmpegBitrate
+                + ", ffmpegQueueSize=" + ffmpegQueueSize
+                + ", ffmpegWhipUrl=" + ffmpegWhipUrl
+                + ", ffmpegWhipBin=" + ffmpegWhipBin
+                + ", ffmpegVaapiDevice=" + ffmpegVaapiDevice
+                + ", ffmpegCapture=" + ffmpegCapture
                 + ']';
     }
 

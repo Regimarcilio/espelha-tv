@@ -578,6 +578,9 @@ public final class HttpApi implements AutoCloseable {
         return path.equals("/app.js")
                 || path.equals("/login.js")
                 || path.equals("/style.css")
+                || path.equals("/test-webrtc.html")
+                || path.equals("/test-webrtc.css")
+                || path.equals("/test-webrtc.js")
                 || path.equals("/favicon.svg");
     }
 
@@ -592,7 +595,7 @@ public final class HttpApi implements AutoCloseable {
         headers.set("Cross-Origin-Resource-Policy", "same-origin");
         headers.set("Content-Security-Policy",
                 "default-src 'self'; img-src 'self' data:; style-src 'self'; "
-                        + "script-src 'self'; connect-src 'self'; frame-ancestors 'none'; "
+                        + "script-src 'self'; connect-src 'self' http://*:8889; frame-ancestors 'none'; "
                         + "base-uri 'none'; form-action 'self'");
     }
 

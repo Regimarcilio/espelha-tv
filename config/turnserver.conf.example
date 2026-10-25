@@ -1,0 +1,41 @@
+# coturn configuration for WebRTC STUN/TURN
+listening-port=3478
+tls-listening-port=5349
+listening-ip=0.0.0.0
+
+# Relay ports
+min-port=49152
+max-port=65535
+
+# Auth
+use-auth-secret
+static-auth-secret=CHANGE_ME
+realm=espelha-tv
+
+# Users
+user=espelha:CHANGE_ME
+
+# STUN
+stun-only=false
+
+# Logging
+log-file=stdout
+verbose
+fingerprint
+lt-cred-mech
+
+# Network
+no-tcp-relay=false
+no-udp-relay=false
+no-cli
+no-tls=false
+no-dtls=false
+
+# Certificates (self-signed for testing)
+cert=/etc/turn_server_cert.pem
+pkey=/etc/turn_server_pkey.pem
+
+# Performance
+max-bps=10000000
+total-quota=1000
+stale-nonce=600

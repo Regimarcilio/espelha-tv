@@ -11,6 +11,9 @@ public final class StaticFiles {
     private static final Map<String, String> CONTENT_TYPES = Map.of(
             "index.html", "text/html; charset=utf-8",
             "login.html", "text/html; charset=utf-8",
+            "test-webrtc.html", "text/html; charset=utf-8",
+            "test-webrtc.css", "text/css; charset=utf-8",
+            "test-webrtc.js", "text/javascript; charset=utf-8",
             "app.js", "text/javascript; charset=utf-8",
             "login.js", "text/javascript; charset=utf-8",
             "style.css", "text/css; charset=utf-8",

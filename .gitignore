@@ -1,5 +1,6 @@
 target/
 .toolchain/
+tools/
 .idea/
 *.iml
 .vscode/
@@ -7,3 +8,4 @@ target/
 *.tmp
 .DS_Store
 out/
+config/turnserver.conf

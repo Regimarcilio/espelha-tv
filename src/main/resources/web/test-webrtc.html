@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Teste WebRTC - Espelha-TV</title>
+  <link rel="stylesheet" href="/test-webrtc.css">
+</head>
+<body>
+  <div class="card">
+    <h1>Teste WebRTC - Espelha-TV</h1>
+    <div id="status" class="status err">Desconectado</div>
+    <video id="video" autoplay playsinline muted></video>
+    <div>
+      <button id="btnConnect" class="btn-primary">Conectar WebRTC (WHEP)</button>
+      <button id="btnDisconnect" class="btn-danger" disabled>Desconectar</button>
+    </div>
+    <div id="stats" class="stats hidden"></div>
+  </div>
+  <script src="/test-webrtc.js"></script>
+</body>
+</html>

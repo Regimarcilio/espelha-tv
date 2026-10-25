@@ -28,16 +28,22 @@ public final class AppServer implements AutoCloseable {
     private final SessionStore sessions;
     private final AuthService auth;
     private final HttpApi http;
+    private final boolean captureEnabled;
     private final ScheduledExecutorService cleanup;
     private final AtomicBoolean started = new AtomicBoolean();
     private final AtomicBoolean closed = new AtomicBoolean();
 
     public AppServer(AppConfig config, ScreenSource source, InputSink sink) {
-        this(config, source, sink, Clock.systemUTC());
+        this(config, source, sink, Clock.systemUTC(), true);
     }
 
     public AppServer(AppConfig config, ScreenSource source, InputSink sink, Clock clock) {
+        this(config, source, sink, clock, true);
+    }
+
+    public AppServer(AppConfig config, ScreenSource source, InputSink sink, Clock clock, boolean captureEnabled) {
         this.config = config;
+        this.captureEnabled = captureEnabled;
         this.hub = new FrameHub();
         this.capture = new CaptureService(source, hub, new JpegEncoder(), config.fps(),
                 config.maxWidth(), config.maxHeight(), config.jpegQuality());
@@ -59,7 +65,9 @@ public final class AppServer implements AutoCloseable {
             throw new IllegalStateException("Servidor já iniciado.");
         }
         http.start();
-        capture.start();
+        if (captureEnabled) {
+            capture.start();
+        }
         cleanup.scheduleWithFixedDelay(this::cleanupExpired, 30, 30, TimeUnit.SECONDS);
     }
 

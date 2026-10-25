@@ -9,6 +9,7 @@
   var claimBtn = document.getElementById('claimBtn');
   var releaseBtn = document.getElementById('releaseBtn');
   var fullscreenBtn = document.getElementById('fullscreenBtn');
+  var tvExitBtn = document.getElementById('tvExitBtn');
   var logoutBtn = document.getElementById('logoutBtn');
   var keyboardBtn = document.getElementById('keyboardBtn');
   var modeLabel = document.getElementById('modeLabel');
@@ -92,7 +93,8 @@
     var active = state.isController;
     var otherActive = !!(info && info.controllerActive && !state.isController);
 
-    document.body.className = 'app-page' + (active ? ' control-active' : '');
+    document.body.classList.add('app-page');
+    document.body.classList.toggle('control-active', active);
     claimBtn.hidden = state.isController && !!state.controlToken;
     claimBtn.disabled = otherActive;
     claimBtn.textContent = state.isController && !state.controlToken
@@ -322,6 +324,21 @@
       });
   }
 
+  function setTvMode(active) {
+    if (active) {
+      document.body.classList.add('tv-mode');
+      document.body.classList.add('cinema-mode');
+    } else {
+      document.body.classList.remove('tv-mode');
+      document.body.classList.remove('cinema-mode');
+    }
+    updateFullscreenLabel();
+  }
+
+  function toggleTvMode() {
+    setTvMode(!document.body.classList.contains('tv-mode'));
+  }
+
   function toggleFullscreen() {
     var doc = document;
     var element = doc.documentElement;
@@ -332,27 +349,40 @@
         if (exit) {
           exit.call(doc);
         }
+        setTvMode(false);
         return;
       }
       var requestFullscreen = element.requestFullscreen || element.webkitRequestFullscreen;
       if (!requestFullscreen) {
-        showOverlay('Tela cheia', 'Este navegador não oferece tela cheia. Use o botão da TV.');
+        // webOS/TV antigos: usa tela cheia por CSS.
+        toggleTvMode();
         return;
       }
       var result = requestFullscreen.call(element);
       if (result && result.catch) {
         result.catch(function () {
-          showOverlay('Tela cheia', 'O navegador bloqueou a tela cheia. Tente novamente.');
+          setTvMode(true);
         });
       }
     } catch (error) {
-      showOverlay('Tela cheia', 'Não foi possível ativar a tela cheia.');
+      setTvMode(true);
     }
   }
 
   function updateFullscreenLabel() {
-    var active = document.fullscreenElement || document.webkitFullscreenElement;
+    var active = document.fullscreenElement || document.webkitFullscreenElement
+      || document.body.classList.contains('tv-mode')
+      || document.body.classList.contains('cinema-mode');
     fullscreenBtn.textContent = active ? 'Sair da tela cheia' : 'Tela cheia';
+  }
+
+  function handleFullscreenChange() {
+    if (document.fullscreenElement || document.webkitFullscreenElement) {
+      document.body.classList.add('cinema-mode');
+    } else if (!document.body.classList.contains('tv-mode')) {
+      document.body.classList.remove('cinema-mode');
+    }
+    updateFullscreenLabel();
   }
 
   function logout() {
@@ -614,6 +644,14 @@
   keyboardBtn.addEventListener('click', openKeyboard);
   overlayClose.addEventListener('click', hideOverlay);
   fullscreenBtn.addEventListener('click', toggleFullscreen);
+  tvExitBtn.addEventListener('click', function () {
+    setTvMode(false);
+    var doc = document;
+    var exit = doc.exitFullscreen || doc.webkitExitFullscreen;
+    if ((doc.fullscreenElement || doc.webkitFullscreenElement) && exit) {
+      exit.call(doc);
+    }
+  });
   logoutBtn.addEventListener('click', logout);
   textCancel.addEventListener('click', closeKeyboard);
   textSend.addEventListener('click', sendText);
@@ -626,8 +664,8 @@
       closeKeyboard();
     }
   });
-  document.addEventListener('fullscreenchange', updateFullscreenLabel);
-  document.addEventListener('webkitfullscreenchange', updateFullscreenLabel);
+  document.addEventListener('fullscreenchange', handleFullscreenChange);
+  document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
 
   window.setInterval(loadState, 5000);
   window.setInterval(function () {
@@ -647,7 +685,7 @@
       });
   }, 10000);
 
-  updateFullscreenLabel();
+  handleFullscreenChange();
   loadState();
   startStream();
 })();

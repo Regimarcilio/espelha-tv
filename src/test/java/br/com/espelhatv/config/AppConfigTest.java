@@ -71,4 +71,43 @@ class AppConfigTest {
         assertThrows(AppConfig.HelpRequested.class,
                 () -> AppConfig.parse(new String[]{"--help"}));
     }
+
+    @Test
+    void parsesFfmpegWhipOptions() {
+        AppConfig config = AppConfig.parse(new String[]{
+                "--token=x",
+                "--ffmpeg-enabled=true",
+                "--ffmpeg-whip-url=http://127.0.0.1:8889/stream/whip",
+                "--ffmpeg-whip-bin=/tmp/ffmpeg-whip",
+                "--ffmpeg-vaapi-device=",
+                "--ffmpeg-capture=stdin",
+                "--ffmpeg-fps=45",
+                "--ffmpeg-width=1366",
+                "--ffmpeg-height=768"
+        });
+
+        assertTrue(config.ffmpegEnabled());
+        assertEquals("http://127.0.0.1:8889/stream/whip", config.ffmpegWhipUrl());
+        assertEquals("/tmp/ffmpeg-whip", config.ffmpegWhipBin());
+        assertEquals("", config.ffmpegVaapiDevice());
+        assertEquals("stdin", config.ffmpegCapture());
+        assertEquals(45, config.ffmpegFps());
+        assertEquals(1366, config.ffmpegWidth());
+        assertEquals(768, config.ffmpegHeight());
+    }
+
+    @Test
+    void ffmpegDefaultsUseX11grab() {
+        AppConfig config = AppConfig.parse(new String[]{"--token=x"});
+        assertEquals("x11grab", config.ffmpegCapture());
+        assertEquals("/dev/dri/renderD128", config.ffmpegVaapiDevice());
+        assertEquals("tools/ffmpeg-whip", config.ffmpegWhipBin());
+    }
+
+    @Test
+    void rejectsInvalidFfmpegCaptureMode() {
+        assertThrows(IllegalArgumentException.class,
+                () -> AppConfig.parse(new String[]{
+                        "--token=x", "--ffmpeg-enabled=true", "--ffmpeg-capture=janela"}));
+    }
 }

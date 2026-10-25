@@ -3,6 +3,8 @@ package br.com.espelhatv;
 import br.com.espelhatv.capture.DemoScreenSource;
 import br.com.espelhatv.capture.RobotScreenSource;
 import br.com.espelhatv.capture.ScreenSource;
+import br.com.espelhatv.capture.ffmpeg.FFmpegProcessManager;
+import br.com.espelhatv.capture.ffmpeg.MjpegTap;
 import br.com.espelhatv.config.AppConfig;
 import br.com.espelhatv.input.InputSink;
 import br.com.espelhatv.input.NoopInputSink;
@@ -11,6 +13,7 @@ import br.com.espelhatv.server.AppServer;
 import br.com.espelhatv.util.NetworkInfo;
 import java.awt.AWTException;
 import java.io.IOException;
+import java.time.Clock;
 import java.util.concurrent.CountDownLatch;
 
 public final class Main {
@@ -35,16 +38,40 @@ public final class Main {
         if (screenshotMethod != null && !screenshotMethod.isBlank()) {
             System.setProperty("awt.robot.screenshotMethod", screenshotMethod.trim());
         } else if (wayland && System.getProperty("awt.robot.screenshotMethod") == null) {
-            // XWayland costuma funcionar sem o portal; dbusScreencast pode
-            // bloquear aguardando uma permissão que não aparece no terminal.
             System.setProperty("awt.robot.screenshotMethod", "x11");
         }
 
         ScreenSource source;
         InputSink sink;
+        FFmpegProcessManager ffmpegManager = null;
+
         if (config.demo()) {
             source = new DemoScreenSource(config.maxWidth(), config.maxHeight());
             sink = new NoopInputSink(config.maxWidth(), config.maxHeight());
+        } else if (config.ffmpegEnabled()) {
+            try {
+                source = new RobotScreenSource(config.drawCursor());
+                sink = new RobotInputSink();
+
+                // O pipeline ffmpeg faz o encode (VAAPI) e publica via WHIP no MediaMTX.
+                ffmpegManager = new FFmpegProcessManager(config);
+                ffmpegManager.start();
+            } catch (Exception e) {
+                System.err.println("Não foi possível iniciar pipeline FFmpeg/WebRTC: " + e.getMessage());
+                System.err.println("Fallback para modo MJPEG...");
+                if (ffmpegManager != null) {
+                    ffmpegManager.close();
+                    ffmpegManager = null;
+                }
+                try {
+                    source = new RobotScreenSource(config.drawCursor());
+                    sink = new RobotInputSink();
+                } catch (AWTException | RuntimeException e2) {
+                    System.err.println("Falha no fallback: " + e2.getMessage());
+                    System.exit(2);
+                    return;
+                }
+            }
         } else {
             try {
                 source = new RobotScreenSource(config.drawCursor());
@@ -66,7 +93,8 @@ public final class Main {
             System.out.println("Aviso: Wayland detectado; captura via X11/XWayland. Se a imagem ficar preta, use sessão X11 ou --demo.");
         }
 
-        AppServer server = new AppServer(config, source, sink);
+        boolean mjpegTapEnabled = ffmpegManager != null && MjpegTap.supported(config);
+        AppServer server = new AppServer(config, source, sink, Clock.systemUTC(), !mjpegTapEnabled);
         try {
             server.start();
         } catch (IOException e) {
@@ -77,19 +105,46 @@ public final class Main {
             return;
         }
 
-        printBanner(config, server.port());
-        Runtime.getRuntime().addShutdownHook(new Thread(server::close, "espelhatv-shutdown"));
+        MjpegTap mjpegTap = null;
+        if (mjpegTapEnabled) {
+            mjpegTap = new MjpegTap(config, server.hub());
+            try {
+                mjpegTap.start();
+            } catch (IOException e) {
+                System.err.println("Não foi possível iniciar MJPEG via ffmpeg: " + e.getMessage());
+                System.err.println("Fallback para captura Java...");
+                mjpegTap.close();
+                mjpegTap = null;
+                server.capture().start();
+            }
+        }
+
+        printBanner(config, server.port(), mjpegTap != null);
+        final FFmpegProcessManager managerToClose = ffmpegManager;
+        final MjpegTap tapToClose = mjpegTap;
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            if (tapToClose != null) {
+                tapToClose.close();
+            }
+            server.close();
+            if (managerToClose != null) {
+                managerToClose.close();
+            }
+        }, "espelhatv-shutdown"));
 
         try {
             new CountDownLatch(1).await();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         } finally {
+            if (mjpegTap != null) {
+                mjpegTap.close();
+            }
             server.close();
         }
     }
 
-    private static void printBanner(AppConfig config, int port) {
+    private static void printBanner(AppConfig config, int port, boolean mjpegViaFfmpeg) {
         String host = switch (config.bind()) {
             case "0.0.0.0", "::", "[::]" -> NetworkInfo.localIpv4();
             default -> config.bind();
@@ -98,7 +153,8 @@ public final class Main {
                 ? config.token()
                 : "(definido por --token/ESPELHATV_TOKEN)";
 
-        String mode = config.demo() ? "DEMO (sem captura real)" : "TELA REAL";
+        String mode = config.demo() ? "DEMO (sem captura real)" : 
+                      config.ffmpegEnabled() ? "TELA REAL + FFmpeg/WebRTC" : "TELA REAL";
         System.out.println();
         System.out.println("============================================================");
         System.out.println(" " + BuildInfo.NAME + " " + BuildInfo.VERSION);
@@ -106,11 +162,30 @@ public final class Main {
         System.out.println(" Modo........: " + mode);
         System.out.println(" URL.........: http://" + host + ":" + port);
         System.out.println(" Token.......: " + tokenLine);
-        System.out.println(" Stream......: MJPEG " + config.fps() + " fps, até "
-                + config.maxWidth() + "x" + config.maxHeight()
-                + ", JPEG " + String.format("%.2f", config.jpegQuality()));
+        if (config.ffmpegEnabled()) {
+            System.out.println(" FFmpeg......: " + config.ffmpegWidth() + "x" + config.ffmpegHeight() 
+                    + " @ " + config.ffmpegFps() + "fps, " + config.ffmpegBitrate() + "kbps"
+                    + (config.ffmpegVaapiDevice().isBlank() ? ", libx264/" + config.ffmpegPreset() : ", VAAPI")
+                    + ", captura " + config.ffmpegCapture());
+            System.out.println(" WHIP........: " + config.ffmpegWhipUrl());
+            if (mjpegViaFfmpeg) {
+                System.out.println(" MJPEG.......: " + config.maxWidth() + "x" + config.maxHeight()
+                        + " @ " + config.fps() + "fps via ffmpeg (TV/navegador)");
+            } else {
+                System.out.println(" MJPEG.......: fallback Java " + config.fps() + " fps, até "
+                        + config.maxWidth() + "x" + config.maxHeight());
+            }
+        } else {
+            System.out.println(" Stream......: MJPEG " + config.fps() + " fps, até "
+                    + config.maxWidth() + "x" + config.maxHeight()
+                    + ", JPEG " + String.format("%.2f", config.jpegQuality()));
+        }
         System.out.println(" Controle....: 1 por vez, timeout " + config.controlTimeoutSeconds() + "s");
         System.out.println(" Firewall....: libere a porta TCP " + port + " na LAN");
+        if (config.ffmpegEnabled()) {
+            System.out.println(" WebRTC......: http://" + host + ":8889/stream/whep (WHEP)");
+            System.out.println(" Player......: http://" + host + ":" + port + "/test-webrtc.html");
+        }
         System.out.println("============================================================");
         System.out.println(" Abra a URL no navegador da TV e informe o token.");
         System.out.println(" Use apenas em rede local confiável: o transporte é HTTP sem TLS.");

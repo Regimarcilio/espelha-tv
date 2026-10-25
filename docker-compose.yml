@@ -1,0 +1,39 @@
+version: "3.8"
+
+services:
+  mediamtx:
+    image: bluenviron/mediamtx:latest
+    container_name: mediamtx
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ./config/mediamtx.yml:/mediamtx.yml:ro
+    environment:
+      - TZ=America/Sao_Paulo
+    # Healthcheck via HTTP API
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9997/v3/config/global/get || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  coturn:
+    image: coturn/coturn:4.6.2
+    container_name: coturn
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ./config/turnserver.conf:/etc/turnserver.conf:ro
+    command: -c /etc/turnserver.conf
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3478 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+networks:
+  default:
+    name: espelha-tv-net
+    driver: bridge

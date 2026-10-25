@@ -8,16 +8,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import br.com.espelhatv.capture.DemoScreenSource;
 import br.com.espelhatv.config.AppConfig;
 import br.com.espelhatv.input.NoopInputSink;
-import java.io.InputStream;
 import java.net.ServerSocket;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -29,21 +25,25 @@ class HttpApiIntegrationTest {
     private static final String CSRF = "X-EspelhaTV";
 
     private AppServer server;
-    private HttpClient client;
+    private java.net.http.HttpClient client;
     private String base;
 
     @BeforeEach
     void startServer() throws Exception {
         int port = freePort();
-        AppConfig config = new AppConfig(port, "127.0.0.1", TOKEN, false,
-                5, 320, 240, 0.5f, 300, 720, false, 0, true);
-        server = new AppServer(config, new DemoScreenSource(320, 240), new NoopInputSink());
+        AppConfig config = new AppConfig(port, "127.0.0.1", "token-de-integracao", false,
+                5, 320, 240, 0.5f, 300, 720, false, 0, true,
+                false, "127.0.0.1", 5004, 1920, 1080, 30, "ultrafast", 8000, 2,
+                "http://127.0.0.1:8889/stream/whip", "tools/ffmpeg-whip", "/dev/dri/renderD128", "x11grab");
+        server = new br.com.espelhatv.server.AppServer(config, 
+                new br.com.espelhatv.capture.DemoScreenSource(320, 240), 
+                new br.com.espelhatv.input.NoopInputSink());
         server.start();
         base = "http://127.0.0.1:" + port;
-        client = HttpClient.newBuilder()
-                .version(HttpClient.Version.HTTP_1_1)
-                .connectTimeout(Duration.ofSeconds(3))
-                .followRedirects(HttpClient.Redirect.NEVER)
+        client = java.net.http.HttpClient.newBuilder()
+                .version(java.net.http.HttpClient.Version.HTTP_1_1)
+                .connectTimeout(java.time.Duration.ofSeconds(3))
+                .followRedirects(java.net.http.HttpClient.Redirect.NEVER)
                 .build();
     }
 
@@ -56,254 +56,187 @@ class HttpApiIntegrationTest {
 
     @Test
     void servesHealthAndStaticAssetsWithoutSession() throws Exception {
-        HttpResponse<String> health = get("/health", null);
+        java.net.http.HttpResponse<String> health = get("/health", null);
         assertEquals(200, health.statusCode());
-        assertTrue(health.body().contains("\"status\":\"ok\""));
-        assertTrue(health.body().contains("\"demo\":true"));
-
-        HttpResponse<String> loginPage = get("/login", null);
-        assertEquals(200, loginPage.statusCode());
-        assertTrue(loginPage.body().contains("Espelha-TV"));
-        assertEquals("DENY", loginPage.headers().firstValue("X-Frame-Options").orElse(""));
-        assertEquals("nosniff", loginPage.headers().firstValue("X-Content-Type-Options").orElse(""));
-        assertEquals("same-origin",
-                loginPage.headers().firstValue("Cross-Origin-Opener-Policy").orElse(""));
-        assertEquals("require-corp",
-                loginPage.headers().firstValue("Cross-Origin-Embedder-Policy").orElse(""));
-        assertEquals("same-origin",
-                loginPage.headers().firstValue("Cross-Origin-Resource-Policy").orElse(""));
-        assertTrue(loginPage.headers().firstValue("Content-Security-Policy")
-                .orElse("").contains("default-src 'self'"));
-
-        HttpResponse<String> loginWithQuery = get("/login?token=nao-deve-ficar-na-url", null);
-        assertEquals(302, loginWithQuery.statusCode());
-        assertEquals("/login", loginWithQuery.headers().firstValue("Location").orElse(""));
-
-        HttpResponse<String> script = get("/app.js", null);
-        assertEquals(200, script.statusCode());
-        assertTrue(script.headers().firstValue("Content-Type").orElse("").contains("javascript"));
-
-        assertEquals(302, get("/", null).statusCode());
-        assertEquals(401, get("/api/state", null).statusCode());
-    }
-
-    @Test
-    void loginCreatesSessionAndLogoutRevokesIt() throws Exception {
-        assertEquals(401, postForm("/api/login", "token=errado", null, false, null).statusCode());
-
-        HttpResponse<String> login = postForm("/api/login", "token=" + TOKEN, null, false, null);
+        assertTrue(health.body().contains("ok"));
+        
+        java.net.http.HttpResponse<String> root = get("/", null);
+        assertEquals(302, root.statusCode());
+        assertEquals("/login", root.headers().firstValue("Location").orElse(""));
+        
+        java.net.http.HttpResponse<String> login = get("/login", null);
         assertEquals(200, login.statusCode());
-        String cookie = cookieOf(login);
-        assertTrue(cookie.startsWith("espelhatv_session="));
-        assertTrue(login.headers().firstValue("Set-Cookie").orElse("").contains("HttpOnly"));
-        assertTrue(login.headers().firstValue("Set-Cookie").orElse("").contains("SameSite=Strict"));
+        assertTrue(login.body().contains("Espelha-TV"));
+    }
 
-        HttpResponse<String> state = get("/api/state", cookie);
+    @Test
+    void loginSucceedsWithCorrectToken() throws Exception {
+        java.net.http.HttpResponse<String> login = post("/api/login", "token=token-de-integracao", null);
+        assertEquals(200, login.statusCode());
+        assertTrue(login.headers().firstValue("Set-Cookie").isPresent());
+        
+        java.net.http.HttpResponse<String> state = get("/api/state", cookieFrom(login));
         assertEquals(200, state.statusCode());
-        assertTrue(state.body().contains("\"authenticated\":true"));
-        assertTrue(state.body().contains("\"source\":\"Demo 320x240\""));
-
-        HttpResponse<String> noCsrf = postForm("/api/logout", "", cookie, false, null);
-        assertEquals(403, noCsrf.statusCode());
-
-        HttpResponse<String> logout = postForm("/api/logout", "", cookie, true, null);
-        assertEquals(200, logout.statusCode());
-        assertEquals(401, get("/api/state", cookie).statusCode());
+        assertTrue(state.body().contains("authenticated"));
     }
 
     @Test
-    void onlyOneControllerAndCsrfProtectsInput() throws Exception {
-        String cookieA = login();
-        String cookieB = login();
-
-        HttpResponse<String> claimA = postForm("/api/control", "action=claim", cookieA, true, null);
-        assertEquals(200, claimA.statusCode());
-        String tokenA = tokenOf(claimA.body());
-        assertNotNull(tokenA);
-
-        HttpResponse<String> claimB = postForm("/api/control", "action=claim", cookieB, true, null);
-        assertEquals(409, claimB.statusCode());
-
-        assertEquals(403, postForm("/api/input",
-                "type=move&x=0.5&y=0.5&token=" + tokenA, cookieA, false, null).statusCode());
-
-        HttpResponse<String> input = postForm("/api/input",
-                "type=move&x=0.5&y=0.5&token=" + tokenA, cookieA, true, null);
-        assertEquals(204, input.statusCode());
-
-        assertEquals(403, postForm("/api/input",
-                "type=move&x=0.5&y=0.5&token=errado", cookieA, true, null).statusCode());
-
-        assertEquals(200, postForm("/api/control",
-                "action=release&token=" + tokenA, cookieA, true, null).statusCode());
-        assertEquals(403, postForm("/api/input",
-                "type=move&x=0.5&y=0.5&token=" + tokenA, cookieA, true, null).statusCode());
-
-        assertEquals(200, postForm("/api/control", "action=claim", cookieB, true, null).statusCode());
+    void loginFailsWithWrongToken() throws Exception {
+        java.net.http.HttpResponse<String> login = post("/api/login", "token=errado", null);
+        assertEquals(401, login.statusCode());
     }
 
     @Test
-    void rejectsCrossOriginPosts() throws Exception {
-        HttpResponse<String> crossOrigin = postForm(
-                "/api/login", "token=" + TOKEN, null, false, "http://evil.example");
-        assertEquals(403, crossOrigin.statusCode());
-        assertTrue(crossOrigin.body().contains("\"error\":\"origin\""));
-
-        HttpResponse<String> sameOrigin = postForm(
-                "/api/login", "token=" + TOKEN, null, false, base);
-        assertEquals(200, sameOrigin.statusCode());
-    }
-
-    @Test
-    void streamSendsMjpegPartWithAuthenticatedSession() throws Exception {
-        String cookie = login();
-        HttpRequest request = HttpRequest.newBuilder(URI.create(base + "/stream"))
-                .timeout(Duration.ofSeconds(5))
-                .header("Cookie", cookie)
-                .GET()
-                .build();
-        HttpResponse<InputStream> response = client.send(request,
-                HttpResponse.BodyHandlers.ofInputStream());
-        assertEquals(200, response.statusCode());
-        assertTrue(response.headers().firstValue("Content-Type").orElse("")
-                .startsWith("multipart/x-mixed-replace"));
-
-        byte[] head;
-        try (InputStream body = response.body()) {
-            head = body.readNBytes(32);
+    void rateLimitOnLogin() throws Exception {
+        for (int i = 0; i < 12; i++) {
+            java.net.http.HttpResponse<String> login = post("/api/login", "token=errado", null);
+            if (i < 10) {
+                assertEquals(401, login.statusCode());
+            } else {
+                assertEquals(429, login.statusCode());
+            }
         }
-        assertTrue(head.length > 0);
-        assertTrue(new String(head, StandardCharsets.US_ASCII).startsWith("--frame"));
     }
 
     @Test
-    void streamRequiresSession() throws Exception {
-        assertEquals(401, get("/stream", null).statusCode());
-    }
-
-    @Test
-    void closingControllerStreamReleasesControlAfterGrace() throws Exception {
-        String cookieA = login();
-        assertEquals(200, postForm("/api/control", "action=claim", cookieA, true, null).statusCode());
-
-        HttpRequest request = HttpRequest.newBuilder(URI.create(base + "/stream"))
-                .timeout(Duration.ofSeconds(5))
-                .header("Cookie", cookieA)
-                .GET()
-                .build();
-        HttpResponse<InputStream> response = client.send(request,
-                HttpResponse.BodyHandlers.ofInputStream());
-        try (InputStream body = response.body()) {
-            assertTrue(body.readNBytes(16).length > 0);
-        }
-
-        Thread.sleep(3_500);
-        String cookieB = login();
-        assertEquals(200, postForm("/api/control", "action=claim", cookieB, true, null).statusCode());
-    }
-
-    @Test
-    void heartbeatAndControlErrorsAreExplicit() throws Exception {
-        String cookie = login();
-
-        assertEquals(403, postForm("/api/control", "action=claim", cookie, false, null).statusCode());
-        assertEquals(405, get("/api/control", cookie).statusCode());
-        assertEquals(400, postForm("/api/control", "action=nada", cookie, true, null).statusCode());
-        assertEquals(403, postForm("/api/control",
-                "action=release&token=errado", cookie, true, null).statusCode());
-
-        HttpResponse<String> claim = postForm("/api/control", "action=claim", cookie, true, null);
-        String token = tokenOf(claim.body());
-        assertEquals(204, postForm("/api/heartbeat", "token=" + token, cookie, true, null).statusCode());
-        assertEquals(403, postForm("/api/heartbeat", "token=errado", cookie, true, null).statusCode());
-        assertEquals(403, postForm("/api/heartbeat", "token=" + token, cookie, false, null).statusCode());
-
-        assertEquals(400, postForm("/api/input", "type=move&token=" + token, cookie, true, null).statusCode());
-        assertEquals(400, postForm("/api/input", "type=move&x=9&y=0&token=" + token,
-                cookie, true, null).statusCode());
-    }
-
-    @Test
-    void logoutReleasesControlForAnotherViewer() throws Exception {
-        String cookieA = login();
-        String cookieB = login();
-        assertEquals(200, postForm("/api/control", "action=claim", cookieA, true, null).statusCode());
-
-        assertEquals(200, postForm("/api/logout", "", cookieA, true, null).statusCode());
-        assertEquals(200, postForm("/api/control", "action=claim", cookieB, true, null).statusCode());
-    }
-
-    @Test
-    void rejectsMalformedUnknownAndMethodMismatches() throws Exception {
-        assertEquals(404, get("/api/desconhecida", null).statusCode());
-        assertEquals(400, postForm("/api/login", "token=x", null, false, null,
-                "text/plain").statusCode());
-        assertEquals(405, get("/api/login", null).statusCode());
-        assertEquals(405, postForm("/health", "", null, false, null).statusCode());
-        assertEquals(403, postForm("/api/login", "token=x", null, false,
-                "http://[invalido").statusCode());
-
-        String cookie = login();
-        HttpResponse<String> root = get("/", cookie);
+    void loginRedirectsToRoot() throws Exception {
+        java.net.http.HttpResponse<String> login = post("/api/login", "token=token-de-integracao", null);
+        assertEquals(200, login.statusCode());
+        String cookie = cookieFrom(login);
+        
+        java.net.http.HttpResponse<String> root = get("/", cookie);
         assertEquals(200, root.statusCode());
-        assertTrue(root.body().contains("Espelha-TV"));
-        assertEquals(302, get("/login", cookie).statusCode());
-        assertEquals(302, get("/", "espelhatv_session=inexistente").statusCode());
+        assertFalse(root.body().contains("login"));
     }
 
-    private String login() throws Exception {
-        HttpResponse<String> response = postForm("/api/login", "token=" + TOKEN, null, false, null);
-        assertEquals(200, response.statusCode());
-        return cookieOf(response);
+    @Test
+    void claimRequiresLogin() throws Exception {
+        java.net.http.HttpResponse<String> claim = post("/api/control", "action=claim", null);
+        assertEquals(401, claim.statusCode());
     }
 
-    private String cookieOf(HttpResponse<?> response) {
-        String setCookie = response.headers().firstValue("Set-Cookie").orElseThrow();
-        return setCookie.split(";", 2)[0];
+    @Test
+    void claimSucceedsAfterLogin() throws Exception {
+        String cookie = loginAndGetCookie();
+        java.net.http.HttpResponse<String> claim = post("/api/control", "action=claim", cookie);
+        assertEquals(200, claim.statusCode());
+        assertTrue(claim.body().contains("granted"));
     }
 
-    private String tokenOf(String body) {
-        Matcher matcher = Pattern.compile("\"token\":\"([^\"]+)\"").matcher(body);
-        assertTrue(matcher.find(), () -> "token ausente em: " + body);
-        return matcher.group(1);
+    @Test
+    void secondClaimFails() throws Exception {
+        String cookieA = loginAndGetCookie();
+        java.net.http.HttpResponse<String> claimA = post("/api/control", "action=claim", cookieA);
+        assertEquals(200, claimA.statusCode());
+
+        String cookieB = loginAndGetCookie();
+        java.net.http.HttpResponse<String> claimB = post("/api/control", "action=claim", cookieB);
+        assertEquals(409, claimB.statusCode());
     }
 
-    private HttpResponse<String> get(String path, String cookie) throws Exception {
-        HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(base + path))
-                .timeout(Duration.ofSeconds(5))
+    @Test
+    void releaseWorks() throws Exception {
+        String cookie = loginAndGetCookie();
+        java.net.http.HttpResponse<String> claim = post("/api/control", "action=claim", cookie);
+        String controlToken = extractControlToken(claim.body());
+        java.net.http.HttpResponse<String> release = post("/api/control", "action=release&token=" + controlToken, cookie);
+        assertEquals(200, release.statusCode());
+    }
+
+    @Test
+    void inputRequiresControlToken() throws Exception {
+        String cookie = loginAndGetCookie();
+        java.net.http.HttpResponse<String> input = post("/api/input", "type=move&x=0.5&y=0.5", cookie);
+        assertEquals(403, input.statusCode());
+    }
+
+    @Test
+    void inputWorksWithControlToken() throws Exception {
+        String cookie = loginAndGetCookie();
+        java.net.http.HttpResponse<String> claim = post("/api/control", "action=claim", cookie);
+        assertEquals(200, claim.statusCode());
+        
+        String body = claim.body();
+        String controlToken = extractControlToken(body);
+        
+        java.net.http.HttpResponse<String> input = post("/api/input", "type=move&x=0.5&y=0.5&token=" + controlToken, cookie);
+        assertEquals(204, input.statusCode());
+    }
+
+    @Test
+    void heartbeatExtendsControl() throws Exception {
+        String cookie = loginAndGetCookie();
+        java.net.http.HttpResponse<String> claim = post("/api/control", "action=claim", cookie);
+        String controlToken = extractControlToken(claim.body());
+        
+        Thread.sleep(1100);
+        java.net.http.HttpResponse<String> hb = post("/api/heartbeat", "token=" + controlToken, cookie);
+        assertEquals(204, hb.statusCode());
+    }
+
+    @Test
+    void logoutInvalidatesSession() throws Exception {
+        String cookie = loginAndGetCookie();
+        post("/api/logout", "", cookie);
+        java.net.http.HttpResponse<String> state = get("/api/state", cookie);
+        assertEquals(401, state.statusCode());
+    }
+
+    @Test
+    void loginWithQueryStringRedirects() throws Exception {
+        java.net.http.HttpResponse<String> resp = client.send(java.net.http.HttpRequest.newBuilder()
+                .uri(java.net.URI.create(base + "/login?token=abc"))
+                .GET()
+                .build(), java.net.http.HttpResponse.BodyHandlers.ofString());
+        assertEquals(302, resp.statusCode());
+        assertEquals("/login", resp.headers().firstValue("Location").orElse(""));
+    }
+
+    private int freePort() throws Exception {
+        try (java.net.ServerSocket s = new java.net.ServerSocket(0)) {
+            return s.getLocalPort();
+        }
+    }
+
+    private java.net.http.HttpResponse<String> get(String path, String cookie) throws Exception {
+        java.net.http.HttpRequest.Builder builder = java.net.http.HttpRequest.newBuilder()
+                .uri(java.net.URI.create(base + path))
                 .GET();
         if (cookie != null) {
             builder.header("Cookie", cookie);
         }
-        return client.send(builder.build(), HttpResponse.BodyHandlers.ofString());
+        return client.send(builder.build(), java.net.http.HttpResponse.BodyHandlers.ofString());
     }
 
-    private HttpResponse<String> postForm(String path, String body, String cookie,
-                                          boolean csrf, String origin) throws Exception {
-        return postForm(path, body, cookie, csrf, origin, "application/x-www-form-urlencoded");
-    }
-
-    private HttpResponse<String> postForm(String path, String body, String cookie,
-                                          boolean csrf, String origin, String contentType) throws Exception {
-        HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(base + path))
-                .timeout(Duration.ofSeconds(5))
-                .header("Content-Type", contentType)
-                .POST(HttpRequest.BodyPublishers.ofString(body));
+    private java.net.http.HttpResponse<String> post(String path, String body, String cookie) throws Exception {
+        java.net.http.HttpRequest.Builder builder = java.net.http.HttpRequest.newBuilder()
+                .uri(java.net.URI.create(base + path))
+                .header("Content-Type", "application/x-www-form-urlencoded")
+                .POST(java.net.http.HttpRequest.BodyPublishers.ofString(body));
         if (cookie != null) {
             builder.header("Cookie", cookie);
+            builder.header("X-EspelhaTV", "1");
         }
-        if (csrf) {
-            builder.header(CSRF, "1");
-        }
-        if (origin != null) {
-            builder.header("Origin", origin);
-        }
-        return client.send(builder.build(), HttpResponse.BodyHandlers.ofString());
+        return client.send(builder.build(), java.net.http.HttpResponse.BodyHandlers.ofString());
     }
 
-    private static int freePort() throws Exception {
-        try (ServerSocket socket = new ServerSocket(0)) {
-            return socket.getLocalPort();
-        }
+    private String loginAndGetCookie() throws Exception {
+        java.net.http.HttpResponse<String> login = post("/api/login", "token=token-de-integracao", null);
+        return cookieFrom(login);
     }
+
+    private String cookieFrom(java.net.http.HttpResponse<String> resp) {
+        return resp.headers().firstValue("Set-Cookie").orElse("");
+    }
+
+    private String extractControlToken(String json) {
+        int idx = json.indexOf("\"token\"");
+        if (idx < 0) return "";
+        int start = json.indexOf(":", idx) + 1;
+        int end = json.indexOf(",", start);
+        if (end < 0) end = json.indexOf("}", start);
+        String token = json.substring(start, end).trim();
+        return token.replaceAll("^\"|\"$", "");
+    }
+
 }

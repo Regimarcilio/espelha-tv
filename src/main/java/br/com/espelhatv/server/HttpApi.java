@@ -258,7 +258,10 @@ public final class HttpApi implements AutoCloseable {
         if (session == null) {
             return;
         }
-        Frame frame = capture.lastFrame();
+        Frame frame = hub.latest();
+        if (frame == null) {
+            frame = capture.lastFrame();
+        }
         int width = frame == null ? config.maxWidth() : frame.width();
         int height = frame == null ? config.maxHeight() : frame.height();
         String error = capture.lastError();
@@ -396,7 +399,10 @@ public final class HttpApi implements AutoCloseable {
     }
 
     private void health(HttpExchange exchange) throws IOException {
-        Frame frame = capture.lastFrame();
+        Frame frame = hub.latest();
+        if (frame == null) {
+            frame = capture.lastFrame();
+        }
         String lastFrame = frame == null ? "null" : "\"" + frame.timestamp() + "\"";
         long uptime = Math.max(0, Duration.between(startedAt, Instant.now()).toSeconds());
         String json = "{"
@@ -578,6 +584,11 @@ public final class HttpApi implements AutoCloseable {
         return path.equals("/app.js")
                 || path.equals("/login.js")
                 || path.equals("/style.css")
+                || path.equals("/test-webrtc.html")
+                || path.equals("/test-webrtc.css")
+                || path.equals("/test-webrtc.js")
+                || path.equals("/diagnostico.html")
+                || path.equals("/diagnostico.js")
                 || path.equals("/favicon.svg");
     }
 
@@ -588,11 +599,12 @@ public final class HttpApi implements AutoCloseable {
         headers.set("Referrer-Policy", "no-referrer");
         headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
         headers.set("Cross-Origin-Opener-Policy", "same-origin");
-        headers.set("Cross-Origin-Embedder-Policy", "require-corp");
+        // COEP fica de fora: o player HLS carrega mídia do MediaMTX (porta 8888) na LAN.
         headers.set("Cross-Origin-Resource-Policy", "same-origin");
         headers.set("Content-Security-Policy",
                 "default-src 'self'; img-src 'self' data:; style-src 'self'; "
-                        + "script-src 'self'; connect-src 'self'; frame-ancestors 'none'; "
+                        + "script-src 'self'; connect-src 'self' http://*:8889; "
+                        + "media-src 'self' http://*:8888; frame-ancestors 'none'; "
                         + "base-uri 'none'; form-action 'self'");
     }
 

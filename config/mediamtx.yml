@@ -1,0 +1,21 @@
+# MediaMTX — WebRTC WHIP (publicação) / WHEP (reprodução)
+logLevel: info
+api: true
+apiAddress: :9997
+
+# WebRTC: anuncia apenas o IP da LAN (evita bridges Docker/Tailscale)
+webrtc: true
+webrtcAddress: :8889
+webrtcAdditionalHosts: [192.168.0.108]
+webrtcIPsFromInterfacesList: [enp1s0]
+
+# RTSP/RTP continuam disponíveis como alternativa de ingest
+rtsp: true
+rtspAddress: :8554
+rtpAddress: :5004
+rtcpAddress: :5005
+
+paths:
+  stream:
+    source: publisher
+    sourceOnDemand: false

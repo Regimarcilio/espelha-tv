@@ -9,3 +9,6 @@ tools/
 .DS_Store
 out/
 config/turnserver.conf
+espelha-tv
+mjpeg*.bin
+mjpeg*_headers.txt

@@ -25,7 +25,25 @@ O controle de mouse/teclado é opcional, exclusivo de um dispositivo por vez.
 
 ## Quick start
 
-### 1. Toolchain local (sem sudo)
+### Opção A: Executável portátil (recomendado — tudo em um)
+
+```bash
+./espelha-tv start        # inicia containers + compila + sobe servidor
+./espelha-tv stop         # para tudo (processos + containers)
+./espelha-tv restart      # reinicia
+./espelha-tv status       # mostra estado
+./espelha-tv logs         # acompanha log em tempo real
+```
+
+O script `espelha-tv` é autocontido: usa o JDK/Maven do `.toolchain/`, sobe os containers
+Docker (mediamtx + coturn), compila se necessário e gerencia o ciclo de vida completo.
+Zero dependências globais, zero arquivos fora do diretório do projeto.
+
+---
+
+### Opção B: Scripts manuais (controle granular)
+
+#### 1. Toolchain local (sem sudo)
 
 ```bash
 ./scripts/bootstrap-toolchain.sh   # baixa JDK 21 + Maven em .toolchain/
@@ -35,7 +53,7 @@ O controle de mouse/teclado é opcional, exclusivo de um dispositivo por vez.
 O `.toolchain/` é ignorado pelo Git. Se já tiver Java 21/Maven no sistema, pode usá-los
 diretamente; `scripts/env.sh` prioriza o toolchain local.
 
-### 2. Validar sem capturar a tela (recomendado)
+#### 2. Validar sem capturar a tela (recomendado)
 
 ```bash
 ./scripts/run.sh --demo --token=demo
@@ -183,6 +201,11 @@ mvn test                    # somente testes
 ## Estrutura
 
 ```text
+espelha-tv                    # executável portátil (start/stop/restart/status/logs)
+mjpeg.bin                     # amostra MJPEG vazia (teste)
+mjpeg2.bin                    # amostra MJPEG real (~22 MB) para testes
+mjpeg_headers.txt             # cabeçalhos HTTP de resposta MJPEG
+mjpeg2_headers.txt            # cabeçalhos HTTP de resposta MJPEG (com dados)
 src/main/java/br/com/espelhatv/
   Main.java                  entrypoint e banner
   config/AppConfig.java      CLI/env e validação
@@ -195,6 +218,9 @@ src/main/java/br/com/espelhatv/
 src/main/resources/web/      login, app, CSS, JS e favicon
 docs/                        SRS, arquitetura/UML, ADRs, backlog, entrega, testes, runbook
 scripts/                     bootstrap, build, run, smoke
+tools/                       ffmpeg-whip (binário para WHIP/WebRTC)
+.toolchain/                  JDK 21 + Maven locais (gitignored)
+target/                      artefatos de build (gitignored)
 ```
 
 ## Segurança e privacidade
